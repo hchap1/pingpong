@@ -1,13 +1,28 @@
 use crate::error::Res;
 
 use iroh::{Endpoint, NodeAddr};
-use iroh::endpoint::Connection;
+use iroh::endpoint::{Connection, RecvStream, SendStream};
+
+use tokio::task::JoinHandle;
 
 const ALPN: &[u8] = b"hchap1/pingpong";
 
 pub struct Network {
     endpoint: Endpoint,
-    connection: Connection
+    recv_handle: JoinHandle<()>,
+    send_handle: JoinHandle<()>
+}
+
+async fn connection_manager(connection: Connection) {
+
+}
+
+async fn recv(recv: RecvStream) {
+
+}
+
+async fn send(send: SendStream) {
+
 }
 
 impl Network {
@@ -18,7 +33,7 @@ impl Network {
 
         Ok(Self {
             endpoint,
-            connection
+            recv_handle: tokio::spawn(async ),
         })
     }
 }
