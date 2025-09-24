@@ -1,4 +1,4 @@
-use iroh::endpoint::{BindError, ConnectError};
+use iroh::endpoint::{BindError, ConnectError, ConnectionError};
 
 pub type Res<T> = Result<T, Error>;
 
@@ -7,7 +7,7 @@ pub enum Error {
     MagicSpawn,
     Discovery,
     Connect,
-    Connection,
+    Connection(Option<ConnectionError>),
     Unknown
 }
 
@@ -25,8 +25,14 @@ impl From<ConnectError> for Error {
     fn from(error: ConnectError) -> Self {
         match error {
             ConnectError::Connect { source: _, backtrace: _, span_trace: _ } => Error::Connect,
-            ConnectError::Connection { source: _, backtrace: _, span_trace: _ } => Error::Connection,
+            ConnectError::Connection { source: _, backtrace: _, span_trace: _ } => Error::Connection(None),
             _ => Error::Unknown
         }
+    }
+}
+
+impl From<ConnectionError> for Error {
+    fn from(error: ConnectionError) -> Self {
+        Error::Connection(Some(error))
     }
 }

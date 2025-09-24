@@ -14,9 +14,11 @@ impl Network {
     pub async fn client(addr: NodeAddr) -> Res<Self> {
         let endpoint = Endpoint::builder().discovery_n0().bind().await?;
         let connection = endpoint.connect(addr, ALPN).await?;
+        let (send, recv) = connection.open_bi().await?;
 
-        Self {
-            endpoint
-        }
+        Ok(Self {
+            endpoint,
+            connection
+        })
     }
 }
