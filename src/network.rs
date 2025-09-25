@@ -21,7 +21,7 @@ const ALPN: &[u8] = b"hchap1/pingpong";
 
 */
 
-pub struct Network {
+pub struct ForeignNodeContact {
     endpoint: Endpoint,
     connection: Connection,
     recv_handle: JoinHandle<()>,
@@ -30,7 +30,7 @@ pub struct Network {
     recv_stream: Receiver<Packet>
 }
 
-/// Consume bytes from recv stream and forward to relay stream
+/// Consume bytes from recv stream and forward to relay stream.
 async fn relay_bytes(addr: NodeAddr, mut recv: RecvStream, relay: Sender<Packet>) {
     let mut buf: Vec<u8> = Vec::new();
 
@@ -55,7 +55,9 @@ async fn relay_bytes(addr: NodeAddr, mut recv: RecvStream, relay: Sender<Packet>
     }
 }
 
-impl Network {
+impl ForeignNodeContact {
+
+    /// Establish a channel to a NodeAddr to send it packets.
     pub async fn client(addr: NodeAddr) -> Res<Self> {
         let endpoint = Endpoint::builder().discovery_n0().bind().await?;
         let connection = endpoint.connect(addr.clone(), ALPN).await?;
@@ -65,6 +67,8 @@ impl Network {
         Ok(Self {
             endpoint,
             connection,
+
+            // Spawn a relay for this, even though it is only one way by protocol.
             recv_handle: tokio::spawn(relay_bytes(addr, recv, relay)),
             send_stream: send,
             recv_stream: extractor
