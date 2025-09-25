@@ -1,7 +1,8 @@
 use crate::error::{Error, Res};
 use crate::packet::Packet;
 
-use iroh::{Endpoint, NodeAddr};
+use iroh::protocol::{AcceptError, ProtocolHandler, Router};
+use iroh::{Endpoint, NodeAddr, NodeId, Watcher};
 use iroh::endpoint::{Connection, ReadError, RecvStream, SendStream};
 
 use tokio::task::JoinHandle;
@@ -21,6 +22,8 @@ const ALPN: &[u8] = b"hchap1/pingpong";
 
 */
 
+/// Local client connected to a foreign server.
+#[derive(Debug)]
 pub struct ForeignNodeContact {
     endpoint: Endpoint,
     connection: Connection,
@@ -31,19 +34,19 @@ pub struct ForeignNodeContact {
 }
 
 /// Consume bytes from recv stream and forward to relay stream.
-async fn relay_bytes(addr: NodeAddr, mut recv: RecvStream, relay: Sender<Packet>) {
+async fn relay_bytes(foreign: NodeId, mut recv: RecvStream, relay: Sender<Packet>) {
     let mut buf: Vec<u8> = Vec::new();
 
     loop {
         // Attempt to find packet to forward, else handle errors gracefully.
         let (forward, close) = match recv.read(&mut buf).await {
             Ok(read) => (match read {
-                Some(_bytes) => Packet::success(addr.clone(), std::mem::take(&mut buf)),
-                None => Packet::failure(addr.clone(), Error::StreamReadFailed)
+                Some(_bytes) => Packet::success(foreign.clone(), std::mem::take(&mut buf)),
+                None => Packet::failure(foreign.clone(), Error::StreamReadFailed)
             }, false),
             Err(e) => (match e {
-                ReadError::ClosedStream => Packet::failure(addr.clone(), Error::StreamClosed),
-                _ => Packet::failure(addr.clone(), Error::StreamCrashed)
+                ReadError::ClosedStream => Packet::failure(foreign.clone(), Error::StreamClosed),
+                _ => Packet::failure(foreign.clone(), Error::StreamCrashed)
             }, true)
         };
 
@@ -61,6 +64,7 @@ impl ForeignNodeContact {
     pub async fn client(addr: NodeAddr) -> Res<Self> {
         let endpoint = Endpoint::builder().discovery_n0().bind().await?;
         let connection = endpoint.connect(addr.clone(), ALPN).await?;
+        let foreign = connection.remote_node_id()?;
         let (send, recv) = connection.open_bi().await?;
         let (relay, extractor) = unbounded();
 
@@ -69,9 +73,57 @@ impl ForeignNodeContact {
             connection,
 
             // Spawn a relay for this, even though it is only one way by protocol.
-            recv_handle: tokio::spawn(relay_bytes(addr, recv, relay)),
+            recv_handle: tokio::spawn(relay_bytes(foreign, recv, relay)),
             send_stream: send,
             recv_stream: extractor
         })
+    }
+}
+
+/// Receives and manages connections from foreign client nodes.
+#[derive(Debug)]
+pub struct Server {
+    node_addr: NodeAddr,
+    router: Router,
+    clients: Vec<ForeignNodeContact>,
+    send_stream: Sender<Packet>,
+    recv_stream: Receiver<Packet>
+}
+
+impl Server {
+    
+    /// Create a server
+    pub async fn spawn() -> Res<Self> {
+
+        let (send_stream, recv_stream) = unbounded();
+        let endpoint = Endpoint::builder().discovery_n0().bind().await?;
+        let router = Router::builder(endpoint).accept(ALPN, PacketRelay { relay: send_stream.clone() }).spawn();
+
+        Ok(Server {
+            node_addr: router.endpoint().node_addr().initialized().await,
+            router,
+            clients: Vec::new(),
+            send_stream, recv_stream
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PacketRelay {
+
+    // Relay messages onto the server message stack
+    relay: Sender<Packet>
+}
+
+impl ProtocolHandler for PacketRelay {
+    async fn accept(&self, connection: Connection) -> Result<(), AcceptError> {
+
+        let node_id = connection.remote_node_id()?;
+        let (_send, recv) = connection.accept_bi().await?;
+
+        // Relay until stream is closed by the other end.
+        relay_bytes(node_id, recv, self.relay.clone()).await;
+
+        Ok(())
     }
 }

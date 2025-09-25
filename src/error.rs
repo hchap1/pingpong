@@ -1,4 +1,4 @@
-use iroh::endpoint::{BindError, ConnectError, ConnectionError};
+use iroh::endpoint::{BindError, ConnectError, ConnectionError, RemoteNodeIdError};
 
 pub type Res<T> = Result<T, Error>;
 
@@ -12,7 +12,9 @@ pub enum Error {
 
     StreamClosed,
     StreamCrashed,
-    StreamReadFailed
+    StreamReadFailed,
+
+    RemoteIDFailed
 }
 
 impl From<BindError> for Error {
@@ -38,5 +40,11 @@ impl From<ConnectError> for Error {
 impl From<ConnectionError> for Error {
     fn from(error: ConnectionError) -> Self {
         Error::Connection(Some(error))
+    }
+}
+
+impl From<RemoteNodeIdError> for Error {
+    fn from(_error: RemoteNodeIdError) -> Self {
+        Error::RemoteIDFailed
     }
 }
