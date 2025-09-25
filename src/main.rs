@@ -23,7 +23,11 @@ async fn main() {
         println!("SERVER ADDRESS: {}", server.get_address().node_id);
 
         while let Ok(packet) = server.get_next_message().await {
-            println!("{:?} SENT {:?}", packet.author, packet.content);
+            if let Ok(bytes) = packet.content {
+                println!("{:?} SENT {:?}", packet.author, String::from_utf8(bytes));
+            } else {
+                println!("{:?} DISCONNECT", packet.author);
+            }
         }
 
     } else if args[1] == "client" {
@@ -36,10 +40,15 @@ async fn main() {
             }
         };
 
+        let message = match args.get(3) {
+            Some(message) => message.clone(),
+            None => {
+                eprintln!("Client requires message to send.");
+                return
+            }
+        };
+
         let mut client = ForeignNodeContact::client(NodeAddr::new(NodeId::from_str(addr).unwrap())).await.unwrap();
-        for _ in 0..10 {
-            client.send(b"Hello, world!".to_vec()).await;
-            client.send(vec![1, 2, 3, 4]).await;
-        }
+        println!("SEND RESULT: {:?}", client.send(message.into_bytes()).await);
     }
 }

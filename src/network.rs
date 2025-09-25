@@ -82,9 +82,8 @@ impl ForeignNodeContact {
         })
     }
 
-    pub async fn send(&mut self, packet: Vec<u8>) {
-        println!("PACKET: {packet:?}");
-        let _ = self.send_stream.write_all(&packet).await;
+    pub async fn send(&mut self, packet: Vec<u8>) -> Res<()> {
+        self.send_stream.write_all(&packet).await.map_err(|_| Error::StreamClosed)
     }
 }
 
