@@ -7,3 +7,4 @@ edition = "2024"
 tokio = { version = "*", features = ["full"] }
 iroh = "*"
 async-channel = "2.5.0"
+iced = "0.13.1"
