@@ -1,3 +1,8 @@
+use std::{pin::Pin, task::{Context, Poll, Waker}, thread::{spawn, JoinHandle}};
+
+use async_channel::{unbounded, Receiver, Sender};
+use iced::futures::Stream;
+
 #[pin_project::pin_project]
 pub struct Relay<T: std::fmt::Debug, F, M>
 where
@@ -85,17 +90,4 @@ impl<T: std::fmt::Debug, F: Fn(T) -> Option<M>, M> Stream for Relay<T, F, M> {
             }
         }
     }
-}
-
-pub fn is_song_similar(song: &Song, query: &str) -> usize {
-    let matcher = SkimMatcherV2::default();
-    let mut title_score = matcher.fuzzy_match(&song.title, query).unwrap_or(0);
-    let mut artist_score = matcher.fuzzy_match(&song.artist, query).unwrap_or(0);
-    let mut album_score = song.album.as_ref().map_or(Some(0), |a| matcher.fuzzy_match(a, query)).unwrap_or(0);
-
-    if title_score < 0 { title_score = 0; }
-    if artist_score < 0 { artist_score = 0; }
-    if album_score < 0 { album_score = 0; }
-
-    (title_score + artist_score + album_score) as usize
 }

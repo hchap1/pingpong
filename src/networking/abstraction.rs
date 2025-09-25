@@ -21,11 +21,13 @@ pub struct Network {
     incoming: Server
 }
 
+#[derive(Debug, Clone)]
 pub enum NetworkTask {
     RequestConversation(NodeId),
     SendMessage(NodeId, Vec<u8>, PacketType)
 }
 
+#[derive(Debug, Clone)]
 pub enum NetworkOutput {
     AddPacket(Packet),
     NonFatalError(Error),

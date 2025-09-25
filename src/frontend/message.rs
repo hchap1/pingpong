@@ -1,4 +1,5 @@
 use iced::Task;
+use iroh::NodeId;
 
 use crate::{error::Error, networking::packet::Packet};
 
@@ -26,6 +27,7 @@ pub enum Global {
 
 #[derive(Clone, Debug)]
 pub enum Chat {
+    MessageBox(String),
     AddPacketToCache(Packet),
     SetConversation(Vec<Packet>)
 }
@@ -33,5 +35,5 @@ pub enum Chat {
 #[derive(Clone, Debug)]
 pub enum PageType {
     AddChat,
-    Chat
+    Chat(NodeId)
 }

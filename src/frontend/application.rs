@@ -8,6 +8,7 @@ use iced::{Element, Task};
 use tokio::{spawn, task::JoinHandle};
 
 use super::message::Chat;
+use super::pages::chat::ChatPage;
 
 pub trait Page {
     fn view(&self) -> Element<Message>;
@@ -23,7 +24,7 @@ pub struct Application {
 
 impl Application {
     pub fn view(&self) -> Element<Message> {
-        
+        self.page.view()
     }
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
@@ -31,7 +32,7 @@ impl Application {
             Message::Global(global) => match global {
                 Global::StartNetworkRelays => Task::stream(
                     Relay::consume_receiver(
-                        self.networking_output_receiver,
+                        self.networking_output_receiver.clone(),
                         |o| match o {
                             NetworkOutput::AddPacket(packet) => Some(Message::Chat(Chat::AddPacketToCache(packet))),
                             NetworkOutput::ConversationRecord(packets) => Some(Message::Chat(Chat::SetConversation(packets))),
@@ -62,6 +63,7 @@ impl Default for Application {
             networking_task_sender: task_sender,
             networking_output_receiver: output_receiver,
             networker: spawn(run_network(task_receiver, output_sender)),
+            page: Box::new(ChatPage::new())
         }
     }
 }
