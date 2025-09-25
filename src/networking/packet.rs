@@ -2,6 +2,7 @@ use iroh::NodeId;
 
 use crate::error::{Error, Res};
 
+#[derive(Copy, Clone, Debug)]
 pub enum PacketType {
     Error,
     String
