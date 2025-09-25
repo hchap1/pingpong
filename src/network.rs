@@ -12,6 +12,15 @@ use async_channel::unbounded;
 
 const ALPN: &[u8] = b"hchap1/pingpong";
 
+/* -- PROTOCOL --
+
+ - Each node runs a server and a client.
+ - Each node runs a server to accept messages.
+ - When a node wishes to send a packet to another node, it must make a client to connect to the server of that node.
+ - Channels, whilst bidirection, are used exclusively for CLIENT -> SERVER communication except for ending the channel.
+
+*/
+
 pub struct Network {
     endpoint: Endpoint,
     connection: Connection,
@@ -29,12 +38,12 @@ async fn relay_bytes(addr: NodeAddr, mut recv: RecvStream, relay: Sender<Packet>
         // Attempt to find packet to forward, else handle errors gracefully.
         let (forward, close) = match recv.read(&mut buf).await {
             Ok(read) => (match read {
-                Some(_bytes) => Ok(std::mem::take(&mut buf)),
-                None => Err(Error::StreamReadFailed)
+                Some(_bytes) => Packet::success(addr.clone(), std::mem::take(&mut buf)),
+                None => Packet::failure(addr.clone(), Error::StreamReadFailed)
             }, false),
             Err(e) => (match e {
-                ReadError::ClosedStream => Err(Error::StreamClosed),
-                _ => Err(Error::StreamCrashed)
+                ReadError::ClosedStream => Packet::failure(addr.clone(), Error::StreamClosed),
+                _ => Packet::failure(addr.clone(), Error::StreamCrashed)
             }, true)
         };
 
@@ -49,14 +58,14 @@ async fn relay_bytes(addr: NodeAddr, mut recv: RecvStream, relay: Sender<Packet>
 impl Network {
     pub async fn client(addr: NodeAddr) -> Res<Self> {
         let endpoint = Endpoint::builder().discovery_n0().bind().await?;
-        let connection = endpoint.connect(addr, ALPN).await?;
+        let connection = endpoint.connect(addr.clone(), ALPN).await?;
         let (send, recv) = connection.open_bi().await?;
         let (relay, extractor) = unbounded();
 
         Ok(Self {
             endpoint,
             connection,
-            recv_handle: tokio::spawn(relay_bytes(recv, relay)),
+            recv_handle: tokio::spawn(relay_bytes(addr, recv, relay)),
             send_stream: send,
             recv_stream: extractor
         })

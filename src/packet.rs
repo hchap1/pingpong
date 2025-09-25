@@ -1,6 +1,6 @@
 use iroh::NodeAddr;
 
-use crate::error::Res;
+use crate::error::{Error, Res};
 
 pub struct Packet {
     pub author: NodeAddr,
@@ -8,7 +8,11 @@ pub struct Packet {
 }
 
 impl Packet {
-    pub fn new(author: NodeAddr, content: Res<Vec<u8>>) -> Self {
-        Self { author, content }
+    pub fn success(author: NodeAddr, content: Vec<u8>) -> Self {
+        Self { author, content: Ok(content) }
+    }
+
+    pub fn failure(author: NodeAddr, error: Error) -> Self {
+        Self { author, content: Ok(content) }
     }
 }
