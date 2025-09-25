@@ -7,7 +7,7 @@ use async_channel::{unbounded, Receiver, Sender};
 use iced::{Element, Task};
 use tokio::{spawn, task::JoinHandle};
 
-use super::message::Chat;
+use super::message::{Chat, PageType};
 use super::pages::chat::ChatPage;
 
 pub trait Page {
@@ -43,6 +43,14 @@ impl Application {
 
                 Global::Warn(e) => {
                     eprintln!("ERROR: {e:?}");
+                    Message::None.task()
+                },
+
+                Global::Load(page_type) => {
+                    match page_type {
+                        PageType::Chat(node_id) => self.page = Box::new(ChatPage::new(node_id)),
+                        PageType::AddChat => {}
+                    }
                     Message::None.task()
                 }
             },

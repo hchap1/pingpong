@@ -22,7 +22,8 @@ impl Message {
 #[derive(Clone, Debug)]
 pub enum Global {
     StartNetworkRelays,
-    Warn(Error)
+    Warn(Error),
+    Load(PageType)
 }
 
 #[derive(Clone, Debug)]
