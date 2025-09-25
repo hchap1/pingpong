@@ -18,7 +18,9 @@ pub enum Error {
 
     RemoteIDFailed,
 
-    MPMCRecvError
+    MPMCRecvError,
+
+    NoSuchClient
 }
 
 impl From<BindError> for Error {

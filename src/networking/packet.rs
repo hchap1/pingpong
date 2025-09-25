@@ -23,6 +23,7 @@ impl PacketType {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Packet {
     pub author: NodeId,
     pub content: Res<Vec<u8>>,
