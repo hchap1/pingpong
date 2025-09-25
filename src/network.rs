@@ -41,12 +41,15 @@ async fn relay_bytes(foreign: NodeId, mut recv: RecvStream, relay: Sender<Packet
         // Attempt to find packet to forward, else handle errors gracefully.
         let (forward, close) = match recv.read(&mut buf).await {
             Ok(read) => (match read {
-                Some(_bytes) => Packet::success(foreign.clone(), std::mem::take(&mut buf)),
-                None => Packet::failure(foreign.clone(), Error::StreamReadFailed)
+                Some(_bytes) => {
+                    println!("BUF: {buf:?}");
+                    Packet::success(foreign, std::mem::take(&mut buf))
+                },
+                None => Packet::failure(foreign, Error::StreamReadFailed)
             }, false),
             Err(e) => (match e {
-                ReadError::ClosedStream => Packet::failure(foreign.clone(), Error::StreamClosed),
-                _ => Packet::failure(foreign.clone(), Error::StreamCrashed)
+                ReadError::ClosedStream => Packet::failure(foreign, Error::StreamClosed),
+                _ => Packet::failure(foreign, Error::StreamCrashed)
             }, true)
         };
 
@@ -80,7 +83,8 @@ impl ForeignNodeContact {
     }
 
     pub async fn send(&mut self, packet: Vec<u8>) {
-        self.send_stream.write_all(&packet).await;
+        println!("PACKET: {packet:?}");
+        let _ = self.send_stream.write_all(&packet).await;
     }
 }
 
