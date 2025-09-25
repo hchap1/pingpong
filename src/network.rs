@@ -38,7 +38,13 @@ async fn relay_bytes(foreign: NodeId, mut recv: RecvStream, relay: Sender<Packet
     loop {
         // Attempt to find packet to forward, else handle errors gracefully.
         let (forward, close) = match recv.read_to_end(4096).await {
-            Ok(read) => (Packet::success(foreign, read), false),
+            Ok(read) => {
+                let empty = read.is_empty();
+                (
+                    if empty { Packet::failure(foreign, Error::StreamClosed) } else { Packet::success(foreign, read) },
+                    empty
+                )
+            },
             Err(e) => (
                 match e {
                     ReadToEndError::Read(_) => Packet::failure(foreign, Error::StreamReadFailed),
