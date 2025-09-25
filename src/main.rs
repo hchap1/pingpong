@@ -24,7 +24,12 @@ async fn main() {
 
         while let Ok(packet) = server.get_next_message().await {
             if let Ok(bytes) = packet.content {
-                println!("{:?} SENT {:?}", packet.author, String::from_utf8(bytes));
+                println!("{:?} SENT UTF-8 {:?}", packet.author, bytes);
+                if let Ok(text) = String::from_utf8(bytes) {
+                    println!("TRANSLATES TO {:?}", text);
+                } else {
+                    println!("IS NOT VALID UTF-8");
+                }
             } else {
                 println!("{:?} DISCONNECT", packet.author);
             }
@@ -40,13 +45,7 @@ async fn main() {
             }
         };
 
-        let message = match args.get(3) {
-            Some(message) => message.clone(),
-            None => {
-                eprintln!("Client requires message to send.");
-                return
-            }
-        };
+        let message = args[2..].join(" ");
 
         let mut client = ForeignNodeContact::client(NodeAddr::new(NodeId::from_str(addr).unwrap())).await.unwrap();
         println!("SEND RESULT: {:?}", client.send(message.into_bytes()).await);
