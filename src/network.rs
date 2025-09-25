@@ -1,4 +1,5 @@
 use crate::error::{Error, Res};
+use crate::packet::Packet;
 
 use iroh::{Endpoint, NodeAddr};
 use iroh::endpoint::{Connection, ReadError, RecvStream, SendStream};
@@ -17,11 +18,11 @@ pub struct Network {
     recv_handle: JoinHandle<()>,
 
     send_stream: SendStream,
-    recv_stream: Receiver<Res<Vec<u8>>>
+    recv_stream: Receiver<Packet>
 }
 
 /// Consume bytes from recv stream and forward to relay stream
-async fn relay_bytes(mut recv: RecvStream, relay: Sender<Res<Vec<u8>>>) {
+async fn relay_bytes(addr: NodeAddr, mut recv: RecvStream, relay: Sender<Packet>) {
     let mut buf: Vec<u8> = Vec::new();
 
     loop {

@@ -1,6 +1,6 @@
 mod network;
 mod error;
-mod message;
+mod packet;
 
 fn main() {
     println!("Hello, world!");
