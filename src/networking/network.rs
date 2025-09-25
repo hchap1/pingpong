@@ -66,9 +66,9 @@ async fn relay_bytes(foreign: NodeId, mut recv: RecvStream, relay: Sender<Packet
 impl ForeignNodeContact {
 
     /// Establish a channel to a NodeAddr to send it packets.
-    pub async fn client(addr: NodeAddr) -> Res<Self> {
+    pub async fn client(addr: NodeId) -> Res<Self> {
         let endpoint = Endpoint::builder().discovery_n0().bind().await?;
-        let connection = endpoint.connect(addr.clone(), ALPN).await?;
+        let connection = endpoint.connect(addr, ALPN).await?;
         let foreign = connection.remote_node_id()?;
         let (send, recv) = connection.open_bi().await?;
         let (relay, extractor) = unbounded();
@@ -123,6 +123,10 @@ impl Server {
 
     pub async fn get_next_message(&self) -> Res<Packet> {
         Ok(self.recv_stream.recv().await?)
+    }
+
+    pub fn yield_receiver(&self) -> Receiver<Packet> {
+        self.recv_stream.clone()
     }
 }
 
