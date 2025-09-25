@@ -78,6 +78,10 @@ impl ForeignNodeContact {
             recv_stream: extractor
         })
     }
+
+    pub async fn send(&mut self, packet: Vec<u8>) {
+        self.send_stream.write_all(&packet).await;
+    }
 }
 
 /// Receives and manages connections from foreign client nodes.
@@ -105,6 +109,14 @@ impl Server {
             clients: Vec::new(),
             send_stream, recv_stream
         })
+    }
+
+    pub fn get_address(&self) -> NodeAddr {
+        self.node_addr.clone()
+    }
+
+    pub async fn get_next_message(&self) -> Res<Packet> {
+        Ok(self.recv_stream.recv().await?)
     }
 }
 

@@ -1,3 +1,4 @@
+use async_channel::RecvError;
 use iroh::endpoint::{BindError, ConnectError, ConnectionError, RemoteNodeIdError};
 
 pub type Res<T> = Result<T, Error>;
@@ -14,7 +15,9 @@ pub enum Error {
     StreamCrashed,
     StreamReadFailed,
 
-    RemoteIDFailed
+    RemoteIDFailed,
+
+    MPMCRecvError
 }
 
 impl From<BindError> for Error {
@@ -46,5 +49,11 @@ impl From<ConnectionError> for Error {
 impl From<RemoteNodeIdError> for Error {
     fn from(_error: RemoteNodeIdError) -> Self {
         Error::RemoteIDFailed
+    }
+}
+
+impl From<RecvError> for Error {
+    fn from(_error: RecvError) -> Self {
+        Self::MPMCRecvError
     }
 }
