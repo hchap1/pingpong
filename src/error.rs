@@ -14,6 +14,7 @@ pub enum Error {
     StreamClosed,
     StreamCrashed,
     StreamReadFailed,
+    TooLong,
 
     RemoteIDFailed,
 

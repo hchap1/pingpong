@@ -3,7 +3,7 @@ use crate::packet::Packet;
 
 use iroh::protocol::{AcceptError, ProtocolHandler, Router};
 use iroh::{Endpoint, NodeAddr, NodeId, Watcher};
-use iroh::endpoint::{Connection, ReadError, RecvStream, SendStream};
+use iroh::endpoint::{Connection, ReadError, ReadToEndError, RecvStream, SendStream};
 
 use tokio::task::JoinHandle;
 
@@ -35,22 +35,16 @@ pub struct ForeignNodeContact {
 
 /// Consume bytes from recv stream and forward to relay stream.
 async fn relay_bytes(foreign: NodeId, mut recv: RecvStream, relay: Sender<Packet>) {
-    let mut buf: Vec<u8> = Vec::new();
-
     loop {
         // Attempt to find packet to forward, else handle errors gracefully.
-        let (forward, close) = match recv.read(&mut buf).await {
-            Ok(read) => (match read {
-                Some(_bytes) => {
-                    println!("BUF: {buf:?} [{_bytes}]");
-                    Packet::success(foreign, std::mem::take(&mut buf))
-                },
-                None => Packet::failure(foreign, Error::StreamReadFailed)
-            }, false),
-            Err(e) => (match e {
-                ReadError::ClosedStream => Packet::failure(foreign, Error::StreamClosed),
-                _ => Packet::failure(foreign, Error::StreamCrashed)
-            }, true)
+        let (forward, close) = match recv.read_to_end(4096).await {
+            Ok(read) => (Packet::success(foreign, read), false),
+            Err(e) => (
+                match e {
+                    ReadToEndError::Read(_) => Packet::failure(foreign, Error::StreamReadFailed),
+                    ReadToEndError::TooLong => Packet::failure(foreign, Error::TooLong)
+                }, true
+            )
         };
 
         // Closed stream (intentional / crash) results in termination of this thread.
