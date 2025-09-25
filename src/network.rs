@@ -1,28 +1,48 @@
-use crate::error::Res;
+use crate::error::{Error, Res};
 
 use iroh::{Endpoint, NodeAddr};
-use iroh::endpoint::{Connection, RecvStream, SendStream};
+use iroh::endpoint::{Connection, ReadError, RecvStream, SendStream};
 
 use tokio::task::JoinHandle;
+
+use async_channel::Sender;
+use async_channel::Receiver;
+use async_channel::unbounded;
 
 const ALPN: &[u8] = b"hchap1/pingpong";
 
 pub struct Network {
     endpoint: Endpoint,
+    connection: Connection,
     recv_handle: JoinHandle<()>,
-    send_handle: JoinHandle<()>
+
+    send_stream: SendStream,
+    recv_stream: Receiver<Res<Vec<u8>>>
 }
 
-async fn connection_manager(connection: Connection) {
+/// Consume bytes from recv stream and forward to relay stream
+async fn relay_bytes(mut recv: RecvStream, relay: Sender<Res<Vec<u8>>>) {
+    let mut buf: Vec<u8> = Vec::new();
 
-}
+    loop {
+        // Attempt to find packet to forward, else handle errors gracefully.
+        let (forward, close) = match recv.read(&mut buf).await {
+            Ok(read) => (match read {
+                Some(_bytes) => Ok(std::mem::take(&mut buf)),
+                None => Err(Error::StreamReadFailed)
+            }, false),
+            Err(e) => (match e {
+                ReadError::ClosedStream => Err(Error::StreamClosed),
+                _ => Err(Error::StreamCrashed)
+            }, true)
+        };
 
-async fn recv(recv: RecvStream) {
+        // Closed stream (intentional / crash) results in termination of this thread.
+        if close { break; }
 
-}
-
-async fn send(send: SendStream) {
-
+        // Forward packet, terminating if relay channel is closed.
+        if relay.send(forward).await.is_err() { break; }
+    }
 }
 
 impl Network {
@@ -30,10 +50,14 @@ impl Network {
         let endpoint = Endpoint::builder().discovery_n0().bind().await?;
         let connection = endpoint.connect(addr, ALPN).await?;
         let (send, recv) = connection.open_bi().await?;
+        let (relay, extractor) = unbounded();
 
         Ok(Self {
             endpoint,
-            recv_handle: tokio::spawn(async ),
+            connection,
+            recv_handle: tokio::spawn(relay_bytes(recv, relay)),
+            send_stream: send,
+            recv_stream: extractor
         })
     }
 }

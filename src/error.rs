@@ -8,7 +8,11 @@ pub enum Error {
     Discovery,
     Connect,
     Connection(Option<ConnectionError>),
-    Unknown
+    Unknown,
+
+    StreamClosed,
+    StreamCrashed,
+    StreamReadFailed
 }
 
 impl From<BindError> for Error {
