@@ -8,3 +8,4 @@ tokio = { version = "*", features = ["full"] }
 iroh = "*"
 async-channel = "2.5.0"
 iced = "0.13.1"
+pin-project = "1.1.10"

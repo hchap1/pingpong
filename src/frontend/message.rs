@@ -1,9 +1,12 @@
 use iced::Task;
 
+use crate::{error::Error, networking::packet::Packet};
+
 #[derive(Clone, Debug)]
 pub enum Message {
     None,
-    Global(Global)
+    Global(Global),
+    Chat(Chat)
 }
 
 impl Message {
@@ -17,11 +20,18 @@ impl Message {
 
 #[derive(Clone, Debug)]
 pub enum Global {
+    StartNetworkRelays,
+    Warn(Error)
+}
 
+#[derive(Clone, Debug)]
+pub enum Chat {
+    AddPacketToCache(Packet),
+    SetConversation(Vec<Packet>)
 }
 
 #[derive(Clone, Debug)]
 pub enum PageType {
-    SelectAddress,
-    MessageAddress
+    AddChat,
+    Chat
 }
