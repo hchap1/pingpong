@@ -1,15 +1,17 @@
 use crate::error::{Error, Res};
-use crate::packet::Packet;
+use crate::networking::packet::Packet;
 
 use iroh::protocol::{AcceptError, ProtocolHandler, Router};
 use iroh::{Endpoint, NodeAddr, NodeId, Watcher};
-use iroh::endpoint::{Connection, ReadError, ReadToEndError, RecvStream, SendStream};
+use iroh::endpoint::{Connection, ReadToEndError, RecvStream, SendStream};
 
 use tokio::task::JoinHandle;
 
 use async_channel::Sender;
 use async_channel::Receiver;
 use async_channel::unbounded;
+
+use super::packet::PacketType;
 
 const ALPN: &[u8] = b"hchap1/pingpong";
 
@@ -82,7 +84,8 @@ impl ForeignNodeContact {
         })
     }
 
-    pub async fn send(&mut self, packet: Vec<u8>) -> Res<()> {
+    pub async fn send(&mut self, mut packet: Vec<u8>, packet_type: PacketType) -> Res<()> {
+        packet.insert(0, packet_type.to_u8());
         self.send_stream.write_all(&packet).await.map_err(|_| Error::StreamClosed)
     }
 }
