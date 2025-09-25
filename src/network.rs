@@ -42,7 +42,7 @@ async fn relay_bytes(foreign: NodeId, mut recv: RecvStream, relay: Sender<Packet
         let (forward, close) = match recv.read(&mut buf).await {
             Ok(read) => (match read {
                 Some(_bytes) => {
-                    println!("BUF: {buf:?}");
+                    println!("BUF: {buf:?} [{_bytes}]");
                     Packet::success(foreign, std::mem::take(&mut buf))
                 },
                 None => Packet::failure(foreign, Error::StreamReadFailed)

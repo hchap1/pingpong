@@ -22,9 +22,9 @@ async fn main() {
         let server = Server::spawn().await.unwrap();
         println!("SERVER ADDRESS: {}", server.get_address().node_id);
 
-        let packet = server.get_next_message().await.unwrap();
-        println!("{:?} SENT {:?}", packet.author, packet.content);
-
+        while let Ok(packet) = server.get_next_message().await {
+            println!("{:?} SENT {:?}", packet.author, packet.content);
+        }
 
     } else if args[1] == "client" {
 
@@ -37,7 +37,9 @@ async fn main() {
         };
 
         let mut client = ForeignNodeContact::client(NodeAddr::new(NodeId::from_str(addr).unwrap())).await.unwrap();
-        client.send(b"Hello, world!".to_vec()).await;
-
+        for _ in 0..10 {
+            client.send(b"Hello, world!".to_vec()).await;
+            client.send(vec![1, 2, 3, 4]).await;
+        }
     }
 }
