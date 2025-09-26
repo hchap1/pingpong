@@ -125,6 +125,7 @@ impl Network {
     /// If a new foreign node was successfuly spawned, Option<NodeId> contains the foreign address.
     pub async fn add_message(&mut self, packet: Packet) -> Res<Option<NodeId>> {
         
+        println!("ADDING MESSAGE: {packet:?}");
         let new_node = if let Some(mut_ref) = self.conversations.get_mut(&packet.author) {
             mut_ref.conversation.push(packet);
             None
@@ -166,6 +167,7 @@ impl Network {
             });
 
             if let Some(mut_ref) = self.conversations.get_mut(&recipient) {
+                println!("ACTUALLY CALLING SEND ON CLIENT");
                 let _ = mut_ref.send_client.send(packet, packet_type).await;
             }
 
