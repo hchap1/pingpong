@@ -103,6 +103,10 @@ pub async fn run_network(tasks: Receiver<NetworkTask>, output: Sender<NetworkOut
             }
         }
 
+        if !cycle_output.is_empty() {
+            println!("OUTPUTTING: {cycle_output:?}");
+        }
+
         // Finally output anything stored in the cycle list.
         for o in std::mem::take(&mut cycle_output) {
             if output.send(o).await.is_err() {
@@ -131,18 +135,24 @@ impl Network {
             mut_ref.conversation.push(packet);
             None
         } else if packet.packet_type == PacketType::Address {
-            let public_key = match &packet.content {
+            println!("RECEIVED ADDRESS PACKET FOR NEW CLIENT");
+            match &packet.content {
                 Ok(content) => match String::from_utf8(content.clone()) {
                     Ok(author_str) => {
+                        println!("DERIVED AUTHOR STRING {author_str}");
                         match NodeId::from_str(&author_str) {
                             Ok(author) => {
-                                self.conversations.insert(packet.author, ForeignNode {
-                                    send_client: ForeignNodeContact::client(packet.author).await?,
+                                println!("DERIVED AUTHOR {author}");
+                                self.conversations.insert(author, ForeignNode {
+                                    send_client: ForeignNodeContact::client(author).await?,
                                     conversation: vec![packet]
                                 });
                                 Some(author)
                             },
-                            _ => None
+                            _ => {
+                                println!("FAILED TO MAKE NODE ID");
+                                None
+                            }
                         }
                     },
                     Err(_) => {
@@ -151,8 +161,7 @@ impl Network {
                     }
                 },
                 _ => None
-            };
-            public_key
+            }
         } else {
             None
         };

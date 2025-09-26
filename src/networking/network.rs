@@ -74,9 +74,13 @@ impl ForeignNodeContact {
     /// Establish a channel to a NodeAddr to send it packets.
     pub async fn client(addr: NodeId) -> Res<Self> {
         let endpoint = Endpoint::builder().discovery_n0().bind().await?;
+        println!("ENDPOINT MADE");
         let connection = endpoint.connect(addr, ALPN).await?;
+        println!("CONNECTION MADE");
         let foreign = connection.remote_node_id()?;
+        println!("FOREIGN NODE {foreign}");
         let (send, recv) = connection.open_bi().await?;
+        println!("CONNECTION OPENED");
         let (relay, extractor) = unbounded();
 
         Ok(Self {
