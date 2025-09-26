@@ -1,7 +1,7 @@
 use iced::{widget::{text, text_input, Column, Container, Scrollable}, Element, Length, Task};
 use iroh::NodeId;
 
-use crate::{frontend::{application::Page, message::{Chat, Message}}, networking::packet::{Packet, PacketType}};
+use crate::{frontend::{application::Page, message::{Chat, Global, Message}}, networking::{abstraction::NetworkTask, packet::{Packet, PacketType}}};
 
 pub struct ChatPage {
     remote_id: NodeId,
@@ -43,6 +43,7 @@ impl Page for ChatPage {
             .push(
                 text_input(&format!("Message {:?}", self.remote_id), &self.message_box)
                     .on_input(|v| Message::Chat(Chat::MessageBox(v)))
+                    .on_submit(Message::Chat(Chat::SendMessage))
             ).into()
     }
 
@@ -52,6 +53,9 @@ impl Page for ChatPage {
                 Chat::AddPacketToCache(packet) => self.conversation.push(packet),
                 Chat::SetConversation(mut packets) => self.conversation.append(&mut packets),
                 Chat::MessageBox(new_value) => self.message_box = new_value,
+                Chat::SendMessage => return Message::Global(Global::NetworkTask(NetworkTask::SendMessage(
+                    self.remote_id, std::mem::take(&mut self.message_box).into_bytes(), PacketType::String
+                ))).task()
             }
         }
         Message::None.task()

@@ -33,7 +33,8 @@ pub enum Global {
 pub enum Chat {
     MessageBox(String),
     AddPacketToCache(Packet),
-    SetConversation(Vec<Packet>)
+    SetConversation(Vec<Packet>),
+    SendMessage
 }
 
 #[derive(Clone, Debug)]
