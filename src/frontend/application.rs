@@ -4,6 +4,7 @@ use crate::{error::Res, frontend::message::Message, networking::abstraction::run
 use crate::frontend::message::Global;
 
 use async_channel::{unbounded, Receiver, Sender};
+use iced::widget::{button, Column, Row, Scrollable, text};
 use iced::{Element, Task};
 use iroh::NodeId;
 use tokio::{spawn, task::JoinHandle};
@@ -27,7 +28,21 @@ pub struct Application {
 
 impl Application {
     pub fn view(&self) -> Element<Message> {
-        self.page.view()
+        Row::new()
+            .push(
+                Scrollable::new(
+                    Column::from_iter(
+                        self.active_chats.iter()
+                            .map(|c|
+                                button(text(format!("{}", c)))
+                                    .on_press(Message::Global(Global::Load(PageType::Chat(*c))))
+                                    .into()
+                            )
+                    )
+                )
+            ).push(
+                self.page.view()
+            ).into()
     }
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
@@ -58,7 +73,7 @@ impl Application {
                         },
 
                         PageType::AddChat => {
-
+                            
                         }
                     }
                 },
