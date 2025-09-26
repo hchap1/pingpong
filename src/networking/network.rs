@@ -88,9 +88,21 @@ impl ForeignNodeContact {
         })
     }
 
+    /// Encode the packet such that it can be split up using length headers
     pub async fn send(&mut self, mut packet: Vec<u8>, packet_type: PacketType) -> Res<()> {
-        packet.insert(0, packet_type.to_u8());
-        self.send_stream.write_all(&packet).await.map_err(|_| Error::StreamClosed)
+        let len = packet.len() as u32;
+
+        let mut header = Vec::with_capacity(5);
+        header.push(packet_type.to_u8());
+        header.extend_from_slice(&len.to_be_bytes());
+
+        header.extend_from_slice(&packet);
+        packet = header;
+
+        self.send_stream
+            .write_all(&packet)
+            .await
+            .map_err(|_| Error::StreamClosed)
     }
 }
 
