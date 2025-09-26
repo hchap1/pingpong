@@ -38,6 +38,7 @@ pub struct ForeignNodeContact {
 /// Consume bytes from recv stream and forward to relay stream.
 async fn relay_bytes(foreign: NodeId, mut recv: RecvStream, relay: Sender<Packet>) {
     loop {
+        println!("LISTENING TO CHANNEL FROM {foreign}");
         // Attempt to find packet to forward, else handle errors gracefully.
         let (forward, close) = match recv.read_to_end(4096).await {
             Ok(read) => {
@@ -48,12 +49,14 @@ async fn relay_bytes(foreign: NodeId, mut recv: RecvStream, relay: Sender<Packet
                     empty
                 )
             },
-            Err(e) => (
+            Err(e) => {
+                println!("CHANNEL FAILURE FROM {foreign}");
+                (
                 match e {
                     ReadToEndError::Read(_) => Packet::failure(foreign, Error::StreamReadFailed),
                     ReadToEndError::TooLong => Packet::failure(foreign, Error::TooLong)
                 }, true
-            )
+            )}
         };
 
         // Closed stream (intentional / crash) results in termination of this thread.

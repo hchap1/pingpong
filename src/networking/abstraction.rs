@@ -146,6 +146,7 @@ impl Network {
     pub async fn send_message(&mut self, recipient: NodeId, packet: Vec<u8>, packet_type: PacketType) -> Res<Option<NodeId>> {
         
         let new_node = if let Some(mut_ref) = self.conversations.get_mut(&recipient) {
+            println!("SEND MESSAGE RECIPIENT EXISTS!");
             mut_ref.send_client.send(packet.clone(), packet_type).await?;
             mut_ref.conversation.push(Packet {
                 author: self.incoming.get_address().node_id,
@@ -154,6 +155,7 @@ impl Network {
             });
             None
         } else {
+            println!("SEND RECIPIENT MESSAGE DOES NOT YET EXIST");
             self.conversations.insert(recipient, ForeignNode {
                 send_client: ForeignNodeContact::client(recipient).await?,
                 conversation: vec![Packet {
