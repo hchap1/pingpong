@@ -7,7 +7,8 @@ use crate::{error::Error, networking::{abstraction::NetworkTask, packet::Packet}
 pub enum Message {
     None,
     Global(Global),
-    Chat(Chat)
+    Chat(Chat),
+    Add(Add)
 }
 
 impl Message {
@@ -33,6 +34,12 @@ pub enum Chat {
     MessageBox(String),
     AddPacketToCache(Packet),
     SetConversation(Vec<Packet>)
+}
+
+#[derive(Clone, Debug)]
+pub enum Add {
+    InputBox(String),
+    Submit
 }
 
 #[derive(Clone, Debug)]
