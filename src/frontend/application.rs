@@ -1,4 +1,5 @@
 use crate::backend::relay::Relay;
+use crate::error::Error;
 use crate::networking::abstraction::{NetworkOutput, NetworkTask};
 use crate::{error::Res, frontend::message::Message, networking::abstraction::run_network};
 use crate::frontend::message::Global;
@@ -10,6 +11,7 @@ use iroh::NodeId;
 use tokio::{spawn, task::JoinHandle};
 
 use super::message::{Chat, PageType};
+use super::pages::add::AddPage;
 use super::pages::chat::ChatPage;
 
 pub trait Page {
@@ -73,7 +75,8 @@ impl Application {
                         },
 
                         PageType::AddChat => {
-                            
+                            self.page = Box::new(AddPage::default());
+                            Message::None.task()
                         }
                     }
                 },
@@ -83,7 +86,12 @@ impl Application {
                     Message::None.task()
                 },
 
-                Global::NetworkTask(task) => Task::future(self.networking_task_sender.send(task)).map(|_| Message::None)
+                Global::NetworkTask(task) => {
+                    match self.networking_task_sender.send_blocking(task) {
+                        Ok(_) => Message::None.task(),
+                        Err(_) => Message::Global(Global::Warn(Error::MPMCRecvError)).task()
+                    }
+                }
             },
 
             Message::None => Message::None.task(),
@@ -102,7 +110,7 @@ impl Default for Application {
             networking_task_sender: task_sender,
             networking_output_receiver: output_receiver,
             networker: spawn(run_network(task_receiver, output_sender)),
-            page: Box::new(ChatPage::new()),
+            page: Box::new(AddPage::default()),
             active_chats: Vec::new()
         }
     }
