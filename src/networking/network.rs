@@ -45,17 +45,17 @@ async fn relay_bytes(foreign: NodeId, mut recv: RecvStream, relay: Sender<Packet
                 println!("RECEIVED: {read:?}");
                 let empty = read.is_empty();
                 (
-                    if empty { Packet::failure(foreign, Error::StreamClosed) } else { Packet::success(foreign, read) },
+                    if empty { vec![Packet::failure(foreign, Error::StreamClosed)] } else { Packet::success(foreign, read) },
                     empty
                 )
             },
             Err(e) => {
                 println!("CHANNEL FAILURE FROM {foreign}");
                 (
-                match e {
+                vec![match e {
                     ReadToEndError::Read(_) => Packet::failure(foreign, Error::StreamReadFailed),
                     ReadToEndError::TooLong => Packet::failure(foreign, Error::TooLong)
-                }, true
+                }], true
             )}
         };
 
@@ -63,7 +63,9 @@ async fn relay_bytes(foreign: NodeId, mut recv: RecvStream, relay: Sender<Packet
         if close { break; }
 
         // Forward packet, terminating if relay channel is closed.
-        if relay.send(forward).await.is_err() { break; }
+        for packet in forward {
+            if relay.send(packet).await.is_err() { break; }
+        }
     }
 }
 
