@@ -51,6 +51,8 @@ pub async fn run_network(tasks: Receiver<NetworkTask>, output: Sender<NetworkOut
         // First, check if there are any new messages. If there was a new client that failed to respond appropriately, emit an error.
         while let Ok(incoming) = message_receiver.try_recv() {
 
+            println!("INCOMING MESSAGE: {incoming:?}");
+
             // Parse the incoming message and tell the application to track the new chat if it exists.
             match network.add_message(incoming.clone()).await {
                 Ok(Some(new_contact)) => cycle_output.push(NetworkOutput::AddChat(new_contact)),
@@ -75,6 +77,8 @@ pub async fn run_network(tasks: Receiver<NetworkTask>, output: Sender<NetworkOut
                 }
 
                 NetworkTask::SendMessage(target, packet, packet_type) => {
+
+                    println!("SEND MESSAGE TASK, TO {target}");
 
                     match network.send_message(target, packet.clone(), packet_type).await {
                         Ok(potential_new_node) => {

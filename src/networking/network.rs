@@ -141,8 +141,10 @@ pub struct PacketRelay {
 impl ProtocolHandler for PacketRelay {
     async fn accept(&self, connection: Connection) -> Result<(), AcceptError> {
 
+        println!("ACCEPTING INCOMING CONNECTION!");
         let node_id = connection.remote_node_id()?;
         let (_send, recv) = connection.accept_bi().await?;
+        println!("ACCEPTED {node_id}");
 
         // Relay until stream is closed by the other end.
         relay_bytes(node_id, recv, self.relay.clone()).await;
