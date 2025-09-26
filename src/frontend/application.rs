@@ -6,7 +6,7 @@ use crate::frontend::message::Global;
 
 use async_channel::{unbounded, Receiver, Sender};
 use iced::widget::{button, Column, Row, Scrollable, text};
-use iced::{Element, Task};
+use iced::{Element, Length, Task};
 use iroh::NodeId;
 use tokio::{spawn, task::JoinHandle};
 
@@ -40,7 +40,7 @@ impl Application {
                                     .on_press(Message::Global(Global::Load(PageType::Chat(*c))))
                                     .into()
                             )
-                    )
+                    ).width(Length::FillPortion(1))
                 )
             ).push(
                 self.page.view()

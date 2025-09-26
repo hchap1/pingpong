@@ -42,8 +42,9 @@ pub async fn run_network(tasks: Receiver<NetworkTask>, output: Sender<NetworkOut
         incoming: server
     };
 
-    let message_receiver: Receiver<Packet> = network.yield_receiver();
+    println!("NODE_ID: {}", network.incoming.get_address().node_id);
 
+    let message_receiver: Receiver<Packet> = network.yield_receiver();
     let mut cycle_output: Vec<NetworkOutput> = Vec::new();
 
     loop {
