@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::str::FromStr;
 
 use async_channel::{Receiver, Sender};
 use iroh::NodeId;
@@ -129,13 +130,31 @@ impl Network {
         let new_node = if let Some(mut_ref) = self.conversations.get_mut(&packet.author) {
             mut_ref.conversation.push(packet);
             None
+        } else if packet.packet_type == PacketType::Address {
+            let public_key = match &packet.content {
+                Ok(content) => match String::from_utf8(content.clone()) {
+                    Ok(author_str) => {
+                        match NodeId::from_str(&author_str) {
+                            Ok(author) => {
+                                self.conversations.insert(packet.author, ForeignNode {
+                                    send_client: ForeignNodeContact::client(packet.author).await?,
+                                    conversation: vec![packet]
+                                });
+                                Some(author)
+                            },
+                            _ => None
+                        }
+                    },
+                    Err(_) => {
+                        println!("INVALID ADDRESS SENT OVER PROTOCOL");
+                        None
+                    }
+                },
+                _ => None
+            };
+            public_key
         } else {
-            let author = packet.author;
-            self.conversations.insert(packet.author, ForeignNode {
-                send_client: ForeignNodeContact::client(packet.author).await?,
-                conversation: vec![packet]
-            });
-            Some(author)
+            None
         };
 
         Ok(new_node)

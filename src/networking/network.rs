@@ -148,9 +148,6 @@ impl ProtocolHandler for PacketRelay {
         let node_id = connection.remote_node_id()?;
         let (mut _send, recv) = connection.accept_bi().await?;
 
-        let e = _send.write_all(b"Hello, world!").await;
-        println!("{e:?}");
-
         // Relay until stream is closed by the other end.
         relay_bytes(node_id, recv, self.relay.clone()).await;
 

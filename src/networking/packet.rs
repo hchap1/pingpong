@@ -5,13 +5,15 @@ use crate::error::{Error, Res};
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum PacketType {
     Error,
-    String
+    String,
+    Address
 }
 
 impl PacketType {
     pub fn from_u8(n: u8) -> Self {
         match n {
             1 => Self::String,
+            2 => Self::Address
             _ => Self::Error
         }
     }
@@ -19,6 +21,7 @@ impl PacketType {
     pub fn to_u8(&self) -> u8 {
         match self {
             Self::String => 1,
+            Self::Address => 2,
             _ => 0
         }
     }
