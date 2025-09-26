@@ -164,7 +164,7 @@ impl Network {
             });
 
             if let Some(mut_ref) = self.conversations.get_mut(&recipient) {
-                mut_ref.send_client.send(packet, packet_type);
+                let _ = mut_ref.send_client.send(packet, packet_type).await;
             }
 
             Some(recipient)
