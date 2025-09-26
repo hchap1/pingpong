@@ -5,6 +5,7 @@ use crate::frontend::message::Global;
 
 use async_channel::{unbounded, Receiver, Sender};
 use iced::{Element, Task};
+use iroh::NodeId;
 use tokio::{spawn, task::JoinHandle};
 
 use super::message::{Chat, PageType};
@@ -19,7 +20,9 @@ pub struct Application {
     networking_task_sender: Sender<NetworkTask>,
     networking_output_receiver: Receiver<NetworkOutput>,
     networker: JoinHandle<Res<()>>,
-    page: Box<dyn Page>
+    page: Box<dyn Page>,
+
+    active_chats: Vec<NodeId>
 }
 
 impl Application {
@@ -36,7 +39,8 @@ impl Application {
                         |o| match o {
                             NetworkOutput::AddPacket(packet) => Some(Message::Chat(Chat::AddPacketToCache(packet))),
                             NetworkOutput::ConversationRecord(packets) => Some(Message::Chat(Chat::SetConversation(packets))),
-                            NetworkOutput::NonFatalError(e) => Some(Message::Global(Global::Warn(e)))
+                            NetworkOutput::NonFatalError(e) => Some(Message::Global(Global::Warn(e))),
+                            NetworkOutput::AddChat(c) => Some(Message::Global(Global::AddChat(c)))
                         }
                     )
                 ),
@@ -52,10 +56,19 @@ impl Application {
                             self.page = Box::new(ChatPage::new(node_id));
                             Message::Global(Global::NetworkTask(NetworkTask::RequestConversation(node_id))).task()
                         },
-                        PageType::AddChat => {}
+
+                        PageType::AddChat => {
+
+                        }
                     }
+                },
+
+                Global::AddChat(node_id) => {
+                    self.active_chats.push(node_id);
                     Message::None.task()
-                }
+                },
+
+                Global::NetworkTask(task) => Task::future(self.networking_task_sender.send(task)).map(|_| Message::None)
             },
 
             Message::None => Message::None.task(),
@@ -74,7 +87,8 @@ impl Default for Application {
             networking_task_sender: task_sender,
             networking_output_receiver: output_receiver,
             networker: spawn(run_network(task_receiver, output_sender)),
-            page: Box::new(ChatPage::new())
+            page: Box::new(ChatPage::new()),
+            active_chats: Vec::new()
         }
     }
 }

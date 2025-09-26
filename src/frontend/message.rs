@@ -24,7 +24,8 @@ pub enum Global {
     StartNetworkRelays,
     Warn(Error),
     Load(PageType),
-    NetworkTask(NetworkTask)
+    NetworkTask(NetworkTask),
+    AddChat(NodeId)
 }
 
 #[derive(Clone, Debug)]

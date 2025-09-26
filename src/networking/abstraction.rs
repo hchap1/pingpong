@@ -31,7 +31,8 @@ pub enum NetworkTask {
 pub enum NetworkOutput {
     AddPacket(Packet),
     NonFatalError(Error),
-    ConversationRecord(Vec<Packet>)
+    ConversationRecord(Vec<Packet>),
+    AddChat(NodeId)
 }
 
 pub async fn run_network(tasks: Receiver<NetworkTask>, output: Sender<NetworkOutput>) -> Res<()> {
@@ -48,10 +49,12 @@ pub async fn run_network(tasks: Receiver<NetworkTask>, output: Sender<NetworkOut
     loop {
         // First, check if there are any new messages. If there was a new client that failed to respond appropriately, emit an error.
         while let Ok(incoming) = message_receiver.try_recv() {
-            if let Err(e) = network.add_message(incoming.clone()).await {
-                cycle_output.push(NetworkOutput::NonFatalError(e));
-            } else {
-                cycle_output.push(NetworkOutput::AddPacket(incoming));
+
+            // Parse the incoming message and tell the application to track the new chat if it exists.
+            match network.add_message(incoming.clone()).await {
+                Ok(Some(new_contact)) => cycle_output.push(NetworkOutput::AddChat(new_contact)),
+                Ok(None) => {},
+                Err(e) => cycle_output.push(NetworkOutput::NonFatalError(e))
             }
         }
 
@@ -71,14 +74,24 @@ pub async fn run_network(tasks: Receiver<NetworkTask>, output: Sender<NetworkOut
                 }
 
                 NetworkTask::SendMessage(target, packet, packet_type) => {
-                    if let Err(e) = network.send_message(target, packet.clone(), packet_type).await {
-                        cycle_output.push(NetworkOutput::NonFatalError(e));
-                    } else {
-                        cycle_output.push(NetworkOutput::AddPacket(Packet {
-                            author: network.incoming.get_address().node_id,
-                            content: Ok(packet),
-                            packet_type
-                        }))
+
+                    match network.send_message(target, packet.clone(), packet_type).await {
+                        Ok(potential_new_node) => {
+
+                            // Firstly, check if we need to add a new contact. This should not happen.
+                            if let Some(new_contact) = potential_new_node {
+                                cycle_output.push(NetworkOutput::AddChat(new_contact));
+                            }
+
+                            // Second, add our own message onto the conversation stack mirrored in application.
+                            cycle_output.push(NetworkOutput::AddPacket(Packet {
+                                author: network.incoming.get_address().node_id,
+                                content: Ok(packet),
+                                packet_type
+                            }))
+
+                        }
+                        Err(e) => cycle_output.push(NetworkOutput::NonFatalError(e))
                     }
                 }
             }
@@ -104,31 +117,37 @@ impl Network {
     }
 
     /// Asynchronously add a message into the conversation stack, spawning a new foreign node if required.
-    pub async fn add_message(&mut self, packet: Packet) -> Res<()> {
+    /// If a new foreign node was successfuly spawned, Option<NodeId> contains the foreign address.
+    pub async fn add_message(&mut self, packet: Packet) -> Res<Option<NodeId>> {
         
-        if let Some(mut_ref) = self.conversations.get_mut(&packet.author) {
+        let new_node = if let Some(mut_ref) = self.conversations.get_mut(&packet.author) {
             mut_ref.conversation.push(packet);
+            None
         } else {
+            let author = packet.author;
             self.conversations.insert(packet.author, ForeignNode {
                 send_client: ForeignNodeContact::client(packet.author).await?,
                 conversation: vec![packet]
             });
-        }
+            Some(author)
+        };
 
-        Ok(())
+        Ok(new_node)
 
     }
 
     /// Send a message to a target address, forming a connection if it does not already exist to their server.
-    pub async fn send_message(&mut self, recipient: NodeId, packet: Vec<u8>, packet_type: PacketType) -> Res<()> {
+    /// If a new foreign node was successfuly spawned, Option<NodeId> contains the foreign address.
+    pub async fn send_message(&mut self, recipient: NodeId, packet: Vec<u8>, packet_type: PacketType) -> Res<Option<NodeId>> {
         
-        if let Some(mut_ref) = self.conversations.get_mut(&recipient) {
+        let new_node = if let Some(mut_ref) = self.conversations.get_mut(&recipient) {
             mut_ref.send_client.send(packet.clone(), packet_type).await?;
             mut_ref.conversation.push(Packet {
                 author: self.incoming.get_address().node_id,
                 content: Ok(packet),
                 packet_type
             });
+            None
         } else {
             self.conversations.insert(recipient, ForeignNode {
                 send_client: ForeignNodeContact::client(recipient).await?,
@@ -142,8 +161,10 @@ impl Network {
             if let Some(mut_ref) = self.conversations.get_mut(&recipient) {
                 mut_ref.send_client.send(packet, packet_type);
             }
-        }
 
-        Ok(())
+            Some(recipient)
+        };
+
+        Ok(new_node)
     }
 }
