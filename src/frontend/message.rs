@@ -1,7 +1,7 @@
 use iced::Task;
 use iroh::NodeId;
 
-use crate::{error::Error, networking::packet::Packet};
+use crate::{error::Error, networking::{abstraction::NetworkTask, packet::Packet}};
 
 #[derive(Clone, Debug)]
 pub enum Message {
@@ -23,7 +23,8 @@ impl Message {
 pub enum Global {
     StartNetworkRelays,
     Warn(Error),
-    Load(PageType)
+    Load(PageType),
+    NetworkTask(NetworkTask)
 }
 
 #[derive(Clone, Debug)]

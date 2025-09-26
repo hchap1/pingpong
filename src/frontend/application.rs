@@ -48,7 +48,10 @@ impl Application {
 
                 Global::Load(page_type) => {
                     match page_type {
-                        PageType::Chat(node_id) => self.page = Box::new(ChatPage::new(node_id)),
+                        PageType::Chat(node_id) => {
+                            self.page = Box::new(ChatPage::new(node_id));
+                            Message::Global(Global::NetworkTask(NetworkTask::RequestConversation(node_id))).task()
+                        },
                         PageType::AddChat => {}
                     }
                     Message::None.task()
