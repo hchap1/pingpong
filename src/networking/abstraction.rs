@@ -19,6 +19,7 @@ pub struct ForeignNode {
 
 pub struct Network {
     conversations: HashMap<NodeId, ForeignNode>,
+    client_to_server: HashMap<NodeId, NodeId>,
     incoming: Server
 }
 
@@ -40,6 +41,7 @@ pub async fn run_network(tasks: Receiver<NetworkTask>, output: Sender<NetworkOut
     let server: Server = Server::spawn().await?;
     let mut network: Network = Network {
         conversations: HashMap::new(),
+        client_to_server: HashMap::new(),
         incoming: server
     };
 
@@ -131,42 +133,33 @@ impl Network {
     pub async fn add_message(&mut self, packet: Packet) -> Res<Option<NodeId>> {
         
         println!("ADDING MESSAGE: {packet:?}");
-        let new_node = if let Some(mut_ref) = self.conversations.get_mut(&packet.author) {
-            mut_ref.conversation.push(packet);
-            None
-        } else if packet.packet_type == PacketType::Address {
-            println!("RECEIVED ADDRESS PACKET FOR NEW CLIENT");
-            match &packet.content {
-                Ok(content) => match String::from_utf8(content.clone()) {
-                    Ok(author_str) => {
-                        println!("DERIVED AUTHOR STRING {author_str}");
-                        match NodeId::from_str(&author_str) {
-                            Ok(author) => {
-                                println!("DERIVED AUTHOR {author}");
-                                self.conversations.insert(author, ForeignNode {
-                                    send_client: ForeignNodeContact::client(author).await?,
-                                    conversation: vec![packet]
-                                });
-                                Some(author)
-                            },
-                            _ => {
-                                println!("FAILED TO MAKE NODE ID");
-                                None
-                            }
-                        }
-                    },
-                    Err(_) => {
-                        println!("INVALID ADDRESS SENT OVER PROTOCOL");
-                        None
-                    }
-                },
-                _ => None
-            }
-        } else {
-            None
-        };
 
-        Ok(new_node)
+        match self.client_to_server.get(&packet.author) {
+            Some(author) => if let Some(mut_ref) = self.conversations.get_mut(author) {
+                mut_ref.conversation.push(packet);
+            }
+            None => if packet.packet_type == PacketType::Address {
+                if let Ok(content) = packet.content {
+                    if let Ok(string) = String::from_utf8(content) {
+                        if let Ok(node_id) = NodeId::from_str(&string) {
+
+                            // Associate the foreign client with the foreign server
+                            self.client_to_server.insert(packet.author, node_id);
+
+                            // Create a new converstation with the foreign server, do not include address packet
+                            self.conversations.insert(node_id, ForeignNode {
+                                send_client: ForeignNodeContact::client(node_id).await?,
+                                conversation: Vec::new()
+                            });
+
+                            return Ok(Some(node_id));
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(None)
 
     }
 
