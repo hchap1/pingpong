@@ -1,7 +1,7 @@
 use iced::Task;
 use iroh::NodeId;
 
-use crate::{error::Error, networking::{abstraction::NetworkTask, packet::Packet}};
+use crate::{error::Error, networking::{abstraction::NetworkTask, contact::Contact, packet::Packet}};
 
 #[derive(Clone, Debug)]
 pub enum Message {
@@ -26,7 +26,10 @@ pub enum Global {
     Warn(Error),
     Load(PageType),
     NetworkTask(NetworkTask),
-    AddChat(NodeId)
+    AddChat(NodeId),
+    LoadContacts,
+    AddContactToDatabase(Contact),
+    DatabaseContactEmmision(Contact)
 }
 
 #[derive(Clone, Debug)]

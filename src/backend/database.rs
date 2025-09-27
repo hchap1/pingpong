@@ -15,7 +15,7 @@ use rusqlite::types::ValueRef;
 use crate::error::Error;
 use crate::error::Res;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum ItemStream {
     Value(Vec<DatabaseParam>),
     Error,

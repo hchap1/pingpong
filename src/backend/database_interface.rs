@@ -1,7 +1,17 @@
+use async_channel::Receiver;
 use iroh::SecretKey;
 
-use super::database::{DataLink, DatabaseParam, DatabaseParams};
-use super::sql::*;
+use crate::networking::contact::Contact;
+
+use super::database::{DataLink, DatabaseParam, DatabaseParams, ItemStream};
+use super::sql::CREATE_NODEID_TABLE;
+use super::sql::SELECT_NODEID;
+use super::sql::DELETE_NODEID;
+use super::sql::CREATE_CONTACTS_TABLE;
+use super::sql::SELECT_ALL_CONTACTS;
+use super::sql::DELETE_CONTACT;
+use super::sql::INSERT_CONTACT;
+use super::sql::INSERT_NODEID;
 
 use rand::rngs::OsRng;
 
@@ -37,6 +47,14 @@ impl DatabaseInterface {
         let _ = db.execute_and_wait(INSERT_NODEID, DatabaseParams::single(DatabaseParam::String(key_string))).await;
 
         secret_key
+    }
+
+    pub fn select_all_contacts(db: DataLink) -> Receiver<ItemStream> {
+        db.query_stream(SELECT_ALL_CONTACTS, DatabaseParams::empty())
+    }
+
+    pub fn insert_contact(db: DataLink, contact: Contact) {
+        let _ = db.execute(INSERT_CONTACT, contact.to_params());
     }
 
 }
