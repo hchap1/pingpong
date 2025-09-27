@@ -1,4 +1,4 @@
-use crate::backend::database::{self, Database};
+use crate::backend::database::Database;
 use crate::backend::directory::Directory;
 use crate::backend::relay::Relay;
 use crate::error::Error;

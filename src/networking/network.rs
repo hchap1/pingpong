@@ -1,4 +1,5 @@
 use crate::backend::database::DataLink;
+use crate::backend::database_interface::DatabaseInterface;
 use crate::error::{Error, Res};
 use crate::networking::packet::Packet;
 
@@ -115,11 +116,11 @@ impl Server {
     
     /// Create a server, will store permanent address in db
     pub async fn spawn(db: DataLink) -> Res<Self> {
-        
-        finish
 
+        let address = DatabaseInterface::get_node_id_blocking(db);
+        
         let (send_stream, recv_stream) = unbounded();
-        let endpoint = Endpoint::builder().discovery_n0().bind().await?;
+        let endpoint = Endpoint::builder().secret_key(address).discovery_n0().bind().await?;
         let router = Router::builder(endpoint).accept(ALPN, PacketRelay { relay: send_stream.clone() }).spawn();
 
         Ok(Server {
