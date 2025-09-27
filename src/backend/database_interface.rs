@@ -4,12 +4,11 @@ use iroh::SecretKey;
 use crate::networking::contact::Contact;
 
 use super::database::{DataLink, DatabaseParam, DatabaseParams, ItemStream};
-use super::sql::{CREATE_NODEID_TABLE, INSERT_USERNAME, SELECT_USERNAME};
+use super::sql::{CREATE_NODEID_TABLE, CREATE_USERNAME_TABLE, INSERT_USERNAME, SELECT_USERNAME};
 use super::sql::SELECT_NODEID;
 use super::sql::DELETE_NODEID;
 use super::sql::CREATE_CONTACTS_TABLE;
 use super::sql::SELECT_ALL_CONTACTS;
-use super::sql::DELETE_CONTACT;
 use super::sql::INSERT_CONTACT;
 use super::sql::INSERT_NODEID;
 
@@ -21,6 +20,8 @@ impl DatabaseInterface {
 
     pub fn make_tables_nonblocking(db: DataLink) {
         let _ = db.execute(CREATE_NODEID_TABLE, DatabaseParams::empty());
+        let _ = db.execute(CREATE_CONTACTS_TABLE, DatabaseParams::empty());
+        let _ = db.execute(&CREATE_USERNAME_TABLE, DatabaseParams::empty());
     }
 
     pub async fn get_node_id_blocking(db: DataLink) -> SecretKey {
