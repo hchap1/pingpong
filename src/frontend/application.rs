@@ -41,16 +41,30 @@ impl Application {
         match self.username.as_ref() {
             Some(_) => Row::new()
                 .push(
-                    Scrollable::new(
-                        Column::from_iter(
-                            self.active_chats.iter()
-                                .map(|c|
-                                    button(text(c.username.as_ref().unwrap_or(&c.server_address.to_string()).to_string()))
-                                        .on_press(Message::Global(Global::Load(PageType::Chat(c.server_address))))
-                                        .into()
-                                )
-                        ).width(Length::FillPortion(1))
-                    )
+                    Column::new()
+                        .push(
+                            Scrollable::new(
+                                Column::from_iter(
+                                    self.active_chats.iter()
+                                        .map(|c|
+                                            button(text(c.username.as_ref().unwrap_or(&c.server_address.to_string()).to_string()))
+                                                .on_press(Message::Global(Global::Load(PageType::Chat(c.server_address))))
+                                                .into()
+                                        )
+                                ).width(Length::FillPortion(1)).height(Length::FillPortion(1))
+                            )
+                        ).push(
+                            Scrollable::new(
+                                Column::from_iter(
+                                    self.possible_chats.iter()
+                                        .map(|c|
+                                            button(text(c.username.as_ref().unwrap_or(&c.server_address.to_string()).to_string()))
+                                                .on_press(Message::Global(Global::Load(PageType::Chat(c.server_address))))
+                                                .into()
+                                        )
+                                ).width(Length::FillPortion(1)).height(Length::FillPortion(1))
+                            )
+                        )
                 ).push(
                     self.page.view()
                 ).into(),
