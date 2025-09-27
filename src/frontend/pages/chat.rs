@@ -28,7 +28,7 @@ impl Page for ChatPage {
                 Container::new(Scrollable::new(Column::from_iter(
                     self.conversation.iter().map(
                         |p| text(format!("{:?}: {:?}",
-                            if p.author == self.remote_id { "LOCAL" } else { "REMOTE" },
+                            if p.author == self.remote_id { "REMOTE" } else { "LOCAL" },
                             if p.packet_type == PacketType::String {
                                 if let Ok(content) = p.content.clone() {
                                     match String::from_utf8(content) {
