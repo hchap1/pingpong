@@ -189,7 +189,7 @@ impl Network {
             });
 
             if let Some(mut_ref) = self.conversations.get_mut(&recipient) {
-                println!("ACTUALLY CALLING SEND ON CLIENT");
+                let _ = mut_ref.send_client.send(self.incoming.get_address().node_id.to_string().into_bytes(), PacketType::Address).await;
                 let _ = mut_ref.send_client.send(packet, packet_type).await;
             }
 
