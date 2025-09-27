@@ -61,7 +61,7 @@ pub async fn run_network(tasks: Receiver<NetworkTask>, output: Sender<NetworkOut
 
     if let Some(username) = network.username.as_ref() {
         for mutable_value in network.conversations.values_mut() {
-            mutable_value.send_client.send(username.as_bytes().to_vec(), PacketType::Username);
+            let _ = mutable_value.send_client.send(username.as_bytes().to_vec(), PacketType::Username).await;
         }
     }
 
@@ -121,7 +121,7 @@ pub async fn run_network(tasks: Receiver<NetworkTask>, output: Sender<NetworkOut
 
                 NetworkTask::SetUsername(username) => {
                     for mutable_value in network.conversations.values_mut() {
-                        mutable_value.send_client.send(username.as_bytes().to_vec(), PacketType::Username);
+                        let _ = mutable_value.send_client.send(username.as_bytes().to_vec(), PacketType::Username).await;
                     }
                     network.username = Some(username);
                 }
