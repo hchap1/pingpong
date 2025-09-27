@@ -3,9 +3,7 @@ use crate::networking::packet::Packet;
 
 use iroh::protocol::{AcceptError, ProtocolHandler, Router};
 use iroh::{Endpoint, NodeAddr, NodeId, Watcher};
-use iroh::endpoint::{Connection, ReadToEndError, RecvStream, SendStream};
-
-use tokio::task::JoinHandle;
+use iroh::endpoint::{Connection, ReadToEndError, RecvStream};
 
 use async_channel::Sender;
 use async_channel::Receiver;
@@ -27,12 +25,8 @@ const ALPN: &[u8] = b"hchap1/pingpong";
 /// Local client connected to a foreign server.
 #[derive(Debug)]
 pub struct ForeignNodeContact {
-    endpoint: Endpoint,
-    connection: Connection,
-    recv_handle: JoinHandle<()>,
-
-    send_stream: SendStream,
-    recv_stream: Receiver<Packet>
+    _endpoint: Endpoint,
+    connection: Connection
 }
 
 /// Consume bytes from recv stream and forward to relay stream.
@@ -74,23 +68,11 @@ impl ForeignNodeContact {
     /// Establish a channel to a NodeAddr to send it packets.
     pub async fn client(addr: NodeId) -> Res<Self> {
         let endpoint = Endpoint::builder().discovery_n0().bind().await?;
-        println!("ENDPOINT MADE");
         let connection = endpoint.connect(addr, ALPN).await?;
-        println!("CONNECTION MADE");
-        let foreign = connection.remote_node_id()?;
-        println!("FOREIGN NODE {foreign}");
-        let (send, recv) = connection.open_bi().await?;
-        println!("CONNECTION OPENED");
-        let (relay, extractor) = unbounded();
 
         Ok(Self {
-            endpoint,
+            _endpoint: endpoint,
             connection,
-
-            // Spawn a relay for this, even though it is only one way by protocol.
-            recv_handle: tokio::spawn(relay_bytes(foreign, recv, relay)),
-            send_stream: send,
-            recv_stream: extractor
         })
     }
 
@@ -105,10 +87,17 @@ impl ForeignNodeContact {
         header.extend_from_slice(&packet);
         packet = header;
 
-        self.send_stream
+        let mut send_stream = self.connection.open_uni().await?;
+
+        send_stream
             .write_all(&packet)
-            .await
-            .map_err(|_| Error::StreamClosed)
+            .await .map_err(|_| Error::StreamClosed)?;
+
+        if send_stream.finish().is_err() {
+            Err(Error::StreamCrashed)
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -116,9 +105,8 @@ impl ForeignNodeContact {
 #[derive(Debug)]
 pub struct Server {
     node_addr: NodeAddr,
-    router: Router,
-    clients: Vec<ForeignNodeContact>,
-    send_stream: Sender<Packet>,
+    _router: Router,
+    _send_stream: Sender<Packet>,
     recv_stream: Receiver<Packet>
 }
 
@@ -133,18 +121,14 @@ impl Server {
 
         Ok(Server {
             node_addr: router.endpoint().node_addr().initialized().await,
-            router,
-            clients: Vec::new(),
-            send_stream, recv_stream
+            _router: router,
+            _send_stream: send_stream,
+            recv_stream
         })
     }
 
     pub fn get_address(&self) -> NodeAddr {
         self.node_addr.clone()
-    }
-
-    pub async fn get_next_message(&self) -> Res<Packet> {
-        Ok(self.recv_stream.recv().await?)
     }
 
     pub fn yield_receiver(&self) -> Receiver<Packet> {
@@ -162,9 +146,8 @@ pub struct PacketRelay {
 impl ProtocolHandler for PacketRelay {
     async fn accept(&self, connection: Connection) -> Result<(), AcceptError> {
 
-        println!("ACCEPTING INCOMING CONNECTION!");
         let node_id = connection.remote_node_id()?;
-        let (mut _send, recv) = connection.accept_bi().await?;
+        let recv = connection.accept_uni().await?;
 
         // Relay until stream is closed by the other end.
         relay_bytes(node_id, recv, self.relay.clone()).await;
