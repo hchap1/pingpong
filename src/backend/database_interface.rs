@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use iroh::SecretKey;
 
 use super::database::{DataLink, DatabaseParam, DatabaseParams};
@@ -12,16 +10,16 @@ pub struct DatabaseInterface;
 impl DatabaseInterface {
 
     pub fn make_tables_nonblocking(db: DataLink) {
-        db.execute(CREATE_NODEID_TABLE, DatabaseParams::empty());
+        let _ = db.execute(CREATE_NODEID_TABLE, DatabaseParams::empty());
     }
 
-    pub fn get_node_id_blocking(db: DataLink) -> SecretKey {
+    pub async fn get_node_id_blocking(db: DataLink) -> SecretKey {
 
         let mut rng = OsRng;
         
-        if let Ok(results) = db.query_blocking(SELECT_NODEID, DatabaseParams::empty()) {
-            if let Some(row) = results.get(0) {
-                if let Some(node_id) = row.get(0) {
+        if let Ok(results) = db.query_map(SELECT_NODEID, DatabaseParams::empty()).await {
+            if let Some(row) = results.first() {
+                if let Some(node_id) = row.first() {
                     if let Ok(secret_key) = hex::decode(node_id.string()) {
                         if let Ok(bytecode) = &secret_key.try_into() {
                             return SecretKey::from_bytes(bytecode);
@@ -32,11 +30,11 @@ impl DatabaseInterface {
         }
 
         // Clean up malformed node_id prior to creating one.
-        db.execute(DELETE_NODEID, DatabaseParams::empty());
+        let _ = db.execute_and_wait(DELETE_NODEID, DatabaseParams::empty()).await;
         let secret_key: SecretKey = SecretKey::generate(&mut rng);
 
         let key_string = hex::encode(secret_key.to_bytes());
-        db.execute(INSERT_NODEID, DatabaseParams::single(DatabaseParam::String(key_string)));
+        let _ = db.execute_and_wait(INSERT_NODEID, DatabaseParams::single(DatabaseParam::String(key_string))).await;
 
         secret_key
     }

@@ -117,7 +117,7 @@ impl Server {
     /// Create a server, will store permanent address in db
     pub async fn spawn(db: DataLink) -> Res<Self> {
 
-        let address = DatabaseInterface::get_node_id_blocking(db);
+        let address = DatabaseInterface::get_node_id_blocking(db).await;
         
         let (send_stream, recv_stream) = unbounded();
         let endpoint = Endpoint::builder().secret_key(address).discovery_n0().bind().await?;
