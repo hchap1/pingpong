@@ -4,7 +4,7 @@ use iroh::SecretKey;
 use crate::networking::contact::Contact;
 
 use super::database::{DataLink, DatabaseParam, DatabaseParams, ItemStream};
-use super::sql::CREATE_NODEID_TABLE;
+use super::sql::{CREATE_NODEID_TABLE, INSERT_USERNAME, SELECT_USERNAME};
 use super::sql::SELECT_NODEID;
 use super::sql::DELETE_NODEID;
 use super::sql::CREATE_CONTACTS_TABLE;
@@ -57,4 +57,14 @@ impl DatabaseInterface {
         let _ = db.execute(INSERT_CONTACT, contact.to_params());
     }
 
+    pub fn select_username(db: DataLink) -> Option<String> {
+        match db.query_blocking(&SELECT_USERNAME, DatabaseParams::empty()) {
+            Ok(rows) => if let Some(first) = rows.first() { first.first().map(|p| p.string()) } else { None },
+            Err(_) => None
+        }
+    }
+
+    pub fn insert_username(db: DataLink, username: String) {
+        let _ = db.execute(INSERT_USERNAME, DatabaseParams::single(DatabaseParam::String(username)));
+    }
 }

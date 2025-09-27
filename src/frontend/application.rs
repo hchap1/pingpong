@@ -9,9 +9,8 @@ use crate::{error::Res, frontend::message::Message, networking::abstraction::run
 use crate::frontend::message::Global;
 
 use async_channel::{unbounded, Receiver, Sender};
-use iced::widget::{button, Column, Row, Scrollable, text};
+use iced::widget::{button, text, text_input, Column, Row, Scrollable};
 use iced::{Element, Length, Task};
-use iroh::NodeId;
 use tokio::{spawn, task::JoinHandle};
 
 use super::message::{Chat, PageType};
@@ -31,27 +30,35 @@ pub struct Application {
     _networker: JoinHandle<Res<()>>,
     page: Box<dyn Page>,
 
-    active_chats: Vec<NodeId>,
-    possible_chats: Vec<Contact>
+    active_chats: Vec<Contact>,
+    possible_chats: Vec<Contact>,
+    username: Option<String>,
+    username_input: String
 }
 
 impl Application {
     pub fn view(&self) -> Element<Message> {
-        Row::new()
-            .push(
-                Scrollable::new(
-                    Column::from_iter(
-                        self.active_chats.iter()
-                            .map(|c|
-                                button(text(format!("{}", c)))
-                                    .on_press(Message::Global(Global::Load(PageType::Chat(*c))))
-                                    .into()
-                            )
-                    ).width(Length::FillPortion(1))
-                )
-            ).push(
-                self.page.view()
-            ).into()
+        match self.username.as_ref() {
+            Some(_) => Row::new()
+                .push(
+                    Scrollable::new(
+                        Column::from_iter(
+                            self.active_chats.iter()
+                                .map(|c|
+                                    button(text(c.username.as_ref().unwrap_or(&c.server_address.to_string()).to_string()))
+                                        .on_press(Message::Global(Global::Load(PageType::Chat(c.server_address))))
+                                        .into()
+                                )
+                        ).width(Length::FillPortion(1))
+                    )
+                ).push(
+                    self.page.view()
+                ).into(),
+            None => text_input("Enter username!", &self.username_input)
+                .on_input(|v| Message::Global(Global::UsernameInput(v)))
+                .on_submit(Message::Global(Global::UpdateUsername))
+                .into()
+        }
     }
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
@@ -64,7 +71,8 @@ impl Application {
                             NetworkOutput::AddPacket(packet) => Some(Message::Chat(Chat::AddPacketToCache(packet))),
                             NetworkOutput::ConversationRecord(packets) => Some(Message::Chat(Chat::SetConversation(packets))),
                             NetworkOutput::NonFatalError(e) => Some(Message::Global(Global::Warn(e))),
-                            NetworkOutput::AddChat(c) => Some(Message::Global(Global::AddChat(c)))
+                            NetworkOutput::AddChat(c) => Some(Message::Global(Global::AddChat(c))),
+                            NetworkOutput::ContactName(node_id, username) => Some(Message::Global(Global::ContactName(node_id, username)))
                         }
                     )
                 ),
@@ -88,8 +96,8 @@ impl Application {
                     }
                 },
 
-                Global::AddChat(node_id) => {
-                    self.active_chats.push(node_id);
+                Global::AddChat(contact) => {
+                    self.active_chats.push(contact);
                     Message::None.task()
                 },
 
@@ -124,6 +132,26 @@ impl Application {
                     self.possible_chats.push(contact);
                     Message::None.task()
                 }
+
+                Global::ContactName(addr, username) => {
+                    for chat in &mut self.active_chats {
+                        if chat.server_address == addr {
+                            chat.username = Some(username);
+                            break;
+                        }
+                    }
+                    Message::None.task()
+                }
+
+                Global::UsernameInput(new_value) => {
+                    self.username_input = new_value;
+                    Message::None.task()
+                }
+
+                Global::UpdateUsername => {
+                    self.username = Some(std::mem::take(&mut self.username_input));
+                    Message::Global(Global::NetworkTask(NetworkTask::SetUsername(self.username.as_ref().unwrap().clone()))).task()
+                }
             },
 
             Message::None => Message::None.task(),
@@ -141,6 +169,7 @@ impl Default for Application {
         let database = Database::new(root.get());
         let db = database.derive();
 
+        let username = DatabaseInterface::select_username(database.derive());
         DatabaseInterface::make_tables_nonblocking(database.derive());
 
         Self {
@@ -148,10 +177,12 @@ impl Default for Application {
             database,
             networking_task_sender: task_sender,
             networking_output_receiver: output_receiver,
-            _networker: spawn(run_network(task_receiver, output_sender, db)),
+            _networker: spawn(run_network(task_receiver, output_sender, db, username.clone())),
             page: Box::new(AddPage::default()),
             active_chats: Vec::new(),
-            possible_chats: Vec::new()
+            possible_chats: Vec::new(),
+            username,
+            username_input: String::default()
         }
     }
 }

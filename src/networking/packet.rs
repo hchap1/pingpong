@@ -6,7 +6,8 @@ use crate::error::{Error, Res};
 pub enum PacketType {
     Error,
     String,
-    Address
+    Address,
+    Username,
 }
 
 impl PacketType {
@@ -14,6 +15,7 @@ impl PacketType {
         match n {
             1 => Self::String,
             2 => Self::Address,
+            3 => Self::Username,
             _ => Self::Error
         }
     }
@@ -22,6 +24,7 @@ impl PacketType {
         match self {
             Self::String => 1,
             Self::Address => 2,
+            Self::Username => 3,
             _ => 0
         }
     }

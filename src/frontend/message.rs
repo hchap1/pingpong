@@ -26,10 +26,13 @@ pub enum Global {
     Warn(Error),
     Load(PageType),
     NetworkTask(NetworkTask),
-    AddChat(NodeId),
+    AddChat(Contact),
     LoadContacts,
     AddContactToDatabase(Contact),
-    DatabaseContactEmmision(Contact)
+    DatabaseContactEmmision(Contact),
+    ContactName(NodeId, String),
+    UsernameInput(String),
+    UpdateUsername
 }
 
 #[derive(Clone, Debug)]

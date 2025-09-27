@@ -7,11 +7,14 @@ use tokio::time::sleep;
 use tokio::time::Duration;
 
 use crate::backend::database::DataLink;
+use crate::backend::database_interface::DatabaseInterface;
 use crate::error::{Error, Res};
 use crate::networking::network::ForeignNodeContact;
 use crate::networking::packet::Packet;
 use crate::networking::network::Server;
 use crate::networking::packet::PacketType;
+
+use super::contact::Contact;
 
 pub struct ForeignNode {
     send_client: ForeignNodeContact,
@@ -21,13 +24,15 @@ pub struct ForeignNode {
 pub struct Network {
     conversations: HashMap<NodeId, ForeignNode>,
     client_to_server: HashMap<NodeId, NodeId>,
-    incoming: Server
+    incoming: Server,
+    username: Option<String>
 }
 
 #[derive(Debug, Clone)]
 pub enum NetworkTask {
     RequestConversation(NodeId),
-    SendMessage(NodeId, Vec<u8>, PacketType)
+    SendMessage(NodeId, Vec<u8>, PacketType),
+    SetUsername(String),
 }
 
 #[derive(Debug, Clone)]
@@ -35,15 +40,18 @@ pub enum NetworkOutput {
     AddPacket(Packet),
     NonFatalError(Error),
     ConversationRecord(Vec<Packet>),
-    AddChat(NodeId)
+    AddChat(Contact),
+    ContactName(NodeId, String)
 }
 
-pub async fn run_network(tasks: Receiver<NetworkTask>, output: Sender<NetworkOutput>, db: DataLink) -> Res<()> {
+pub async fn run_network(tasks: Receiver<NetworkTask>, output: Sender<NetworkOutput>, db: DataLink, username: Option<String>) -> Res<()> {
+
     let server: Server = Server::spawn(db.clone()).await?;
     let mut network: Network = Network {
         conversations: HashMap::new(),
         client_to_server: HashMap::new(),
-        incoming: server
+        incoming: server,
+        username
     };
 
     println!("NODE_ID: {}", network.incoming.get_address().node_id);
@@ -51,13 +59,19 @@ pub async fn run_network(tasks: Receiver<NetworkTask>, output: Sender<NetworkOut
     let message_receiver: Receiver<Packet> = network.yield_receiver();
     let mut cycle_output: Vec<NetworkOutput> = Vec::new();
 
+    if let Some(username) = network.username.as_ref() {
+        for mutable_value in network.conversations.values_mut() {
+            mutable_value.send_client.send(username.as_bytes().to_vec(), PacketType::Username);
+        }
+    }
+
     loop {
         // First, check if there are any new messages. If there was a new client that failed to respond appropriately, emit an error.
         while let Ok(mut incoming) = message_receiver.try_recv() {
 
             // Parse the incoming message and tell the application to track the new chat if it exists.
             match network.add_message(incoming.clone()).await {
-                Ok(Some(new_contact)) => cycle_output.push(NetworkOutput::AddChat(new_contact)),
+                Ok(Some(message)) => cycle_output.push(message),
                 Ok(None) => {},
                 Err(e) => cycle_output.push(NetworkOutput::NonFatalError(e))
             }
@@ -90,7 +104,7 @@ pub async fn run_network(tasks: Receiver<NetworkTask>, output: Sender<NetworkOut
 
                             // Firstly, check if we need to add a new contact. This should not happen.
                             if let Some(new_contact) = potential_new_node {
-                                cycle_output.push(NetworkOutput::AddChat(new_contact));
+                                cycle_output.push(NetworkOutput::AddChat(Contact::from_node_id(new_contact)));
                             }
 
                             // Second, add our own message onto the conversation stack mirrored in application.
@@ -103,6 +117,13 @@ pub async fn run_network(tasks: Receiver<NetworkTask>, output: Sender<NetworkOut
                         }
                         Err(e) => cycle_output.push(NetworkOutput::NonFatalError(e))
                     }
+                }
+
+                NetworkTask::SetUsername(username) => {
+                    for mutable_value in network.conversations.values_mut() {
+                        mutable_value.send_client.send(username.as_bytes().to_vec(), PacketType::Username);
+                    }
+                    network.username = Some(username);
                 }
             }
         }
@@ -128,13 +149,25 @@ impl Network {
 
     /// Asynchronously add a message into the conversation stack, spawning a new foreign node if required.
     /// If a new foreign node was successfuly spawned, Option<NodeId> contains the foreign address.
-    pub async fn add_message(&mut self, mut packet: Packet) -> Res<Option<NodeId>> {
+    pub async fn add_message(&mut self, mut packet: Packet) -> Res<Option<NetworkOutput>> {
         
         match self.client_to_server.get(&packet.author) {
             Some(author) => if let Some(mut_ref) = self.conversations.get_mut(author) {
                 packet.author = *author;
-                mut_ref.conversation.push(packet);
+                
+                match packet.packet_type {
+                    PacketType::String => mut_ref.conversation.push(packet),
+                    PacketType::Username => {
+                        if let Ok(content) = packet.content {
+                            if let Ok(username) = String::from_utf8(content) {
+                                return Ok(Some(NetworkOutput::ContactName(packet.author, username)))
+                            }
+                        }
+                    },
+                    _ => {}
+                }
             }
+
             None => if packet.packet_type == PacketType::Address {
                 if let Ok(content) = packet.content {
                     if let Ok(string) = String::from_utf8(content) {
@@ -149,7 +182,11 @@ impl Network {
                                 conversation: Vec::new()
                             });
 
-                            return Ok(Some(node_id));
+                            if let (Some(mutable_ref), Some(username)) = (self.conversations.get_mut(&node_id), self.username.as_ref()) {
+                                let _ = mutable_ref.send_client.send(username.as_bytes().to_vec(), PacketType::Username).await;
+                            }
+
+                            return Ok(Some(NetworkOutput::AddChat(Contact::from_node_id(node_id))));
                         }
                     }
                 }
@@ -184,6 +221,9 @@ impl Network {
 
             if let Some(mut_ref) = self.conversations.get_mut(&recipient) {
                 let _ = mut_ref.send_client.send(self.incoming.get_address().node_id.to_string().into_bytes(), PacketType::Address).await;
+                if let Some(username) = self.username.as_ref() {
+                     _ = mut_ref.send_client.send(username.as_bytes().to_vec(), PacketType::Username);
+                }
                 let _ = mut_ref.send_client.send(packet, packet_type).await;
             }
 

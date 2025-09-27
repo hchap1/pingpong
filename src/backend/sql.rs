@@ -43,3 +43,20 @@ pub const DELETE_CONTACT: &str = "
 pub const SELECT_ALL_CONTACTS: &str = "
     SELECT node_id, username FROM Contacts;
 ";
+
+// USERNAME //
+pub const CREATE_USERNAME_TABLE: &str = "
+    CREATE TABLE IF NOT EXISTS Username (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL
+    );
+";
+
+pub const INSERT_USERNAME: &str = "
+    INSERT INTO Username
+    VALUES(null, ?)
+";
+
+pub const SELECT_USERNAME: &str = "
+    SELECT username FROM Username;
+";
