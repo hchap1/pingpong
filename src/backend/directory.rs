@@ -1,4 +1,4 @@
-use std::{fs::create_dir_all, io::ErrorKind, path::{Path, PathBuf}};
+use std::{fs::create_dir_all, path::{Path, PathBuf}};
 
 use directories::ProjectDirs;
 

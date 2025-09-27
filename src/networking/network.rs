@@ -68,8 +68,9 @@ async fn relay_bytes(foreign: NodeId, mut recv: RecvStream, relay: Sender<Packet
 impl ForeignNodeContact {
 
     /// Establish a channel to a NodeAddr to send it packets.
-    pub async fn client(addr: NodeId) -> Res<Self> {
-        let endpoint = Endpoint::builder().discovery_n0().bind().await?;
+    pub async fn client(addr: NodeId, db: DataLink) -> Res<Self> {
+        let secret_key = DatabaseInterface::get_node_id_blocking(db).await.1;
+        let endpoint = Endpoint::builder().secret_key(secret_key).discovery_n0().bind().await?;
         let connection = endpoint.connect(addr, ALPN).await?;
 
         Ok(Self {
@@ -117,7 +118,7 @@ impl Server {
     /// Create a server, will store permanent address in db
     pub async fn spawn(db: DataLink) -> Res<Self> {
 
-        let address = DatabaseInterface::get_node_id_blocking(db).await;
+        let address = DatabaseInterface::get_node_id_blocking(db).await.0;
         
         let (send_stream, recv_stream) = unbounded();
         let endpoint = Endpoint::builder().secret_key(address).discovery_n0().bind().await?;

@@ -69,7 +69,7 @@ pub async fn run_network(tasks: Receiver<NetworkTask>, output: Sender<NetworkOut
         while let Ok(mut incoming) = message_receiver.try_recv() {
 
             // Parse the incoming message and tell the application to track the new chat if it exists.
-            match network.add_message(incoming.clone()).await {
+            match network.add_message(incoming.clone(), &db).await {
                 Ok(Some(message)) => cycle_output.push(message),
                 Ok(None) => {},
                 Err(e) => cycle_output.push(NetworkOutput::NonFatalError(e))
@@ -100,7 +100,7 @@ pub async fn run_network(tasks: Receiver<NetworkTask>, output: Sender<NetworkOut
 
                 NetworkTask::SendMessage(target, packet, packet_type) => {
 
-                    match network.send_message(target, packet.clone(), packet_type).await {
+                    match network.send_message(target, packet.clone(), packet_type, &db).await {
                         Ok(potential_new_node) => {
 
                             // Firstly, check if we need to add a new contact. This should not happen.
@@ -150,7 +150,7 @@ impl Network {
 
     /// Asynchronously add a message into the conversation stack, spawning a new foreign node if required.
     /// If a new foreign node was successfuly spawned, Option<NodeId> contains the foreign address.
-    pub async fn add_message(&mut self, mut packet: Packet) -> Res<Option<NetworkOutput>> {
+    pub async fn add_message(&mut self, mut packet: Packet, db: &DataLink) -> Res<Option<NetworkOutput>> {
         
         match self.client_to_server.get(&packet.author) {
             Some(author) => if let Some(mut_ref) = self.conversations.get_mut(author) {
@@ -179,7 +179,7 @@ impl Network {
 
                             // Create a new converstation with the foreign server, do not include address packet
                             self.conversations.insert(node_id, ForeignNode {
-                                send_client: ForeignNodeContact::client(node_id).await?,
+                                send_client: ForeignNodeContact::client(node_id, db.clone()).await?,
                                 conversation: Vec::new()
                             });
 
@@ -203,7 +203,7 @@ impl Network {
 
     /// Send a message to a target address, forming a connection if it does not already exist to their server.
     /// If a new foreign node was successfuly spawned, Option<NodeId> contains the foreign address.
-    pub async fn send_message(&mut self, recipient: NodeId, packet: Vec<u8>, packet_type: PacketType) -> Res<Option<NodeId>> {
+    pub async fn send_message(&mut self, recipient: NodeId, packet: Vec<u8>, packet_type: PacketType, db: &DataLink) -> Res<Option<NodeId>> {
 
         let new_node = if let Some(mut_ref) = self.conversations.get_mut(&recipient) {
             mut_ref.send_client.send(packet.clone(), packet_type).await?;
@@ -215,7 +215,7 @@ impl Network {
             None
         } else {
             self.conversations.insert(recipient, ForeignNode {
-                send_client: ForeignNodeContact::client(recipient).await?,
+                send_client: ForeignNodeContact::client(recipient, db.clone()).await?,
                 conversation: vec![Packet {
                     author: self.incoming.get_address().node_id,
                     content: Ok(packet.clone()),
