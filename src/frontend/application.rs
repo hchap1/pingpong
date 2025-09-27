@@ -150,6 +150,7 @@ impl Application {
                 }
 
                 Global::AddContactToDatabase(contact) => {
+                    self.possible_chats.push(contact.clone());
                     DatabaseInterface::insert_contact(self.database.derive(), contact);
                     Message::None.task()
                 }
