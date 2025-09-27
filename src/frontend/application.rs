@@ -47,9 +47,21 @@ impl Application {
                                 Column::from_iter(
                                     self.active_chats.iter()
                                         .map(|c|
-                                            button(text(c.username.as_ref().unwrap_or(&c.server_address.to_string()).to_string()))
-                                                .on_press(Message::Global(Global::Load(PageType::Chat(c.server_address))))
-                                                .into()
+                                            Row::new()
+                                                .push(
+                                                    button(text(c.username.as_ref().unwrap_or(&c.server_address.to_string()).to_string()))
+                                                        .on_press(Message::Global(Global::Load(PageType::Chat(c.server_address))))
+                                                )
+                                                .push(
+                                                    button(text("ADD CONTACT"))
+                                                        .on_press_maybe(
+                                                            if self.possible_chats.iter().any(|ch| ch.server_address == c.server_address) {
+                                                                None
+                                                            } else {
+                                                                Some(Message::Global(Global::AddContactToDatabase(c.clone())))
+                                                            }
+                                                        )
+                                                ).into()
                                         )
                                 ).width(Length::FillPortion(1))
                             ).height(Length::FillPortion(1))
