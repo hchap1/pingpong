@@ -164,6 +164,7 @@ impl Application {
 
                 Global::UpdateUsername => {
                     self.username = Some(std::mem::take(&mut self.username_input));
+                    DatabaseInterface::insert_username(self.database.derive(), self.username.as_ref().unwrap().clone());
                     Message::Global(Global::NetworkTask(NetworkTask::SetUsername(self.username.as_ref().unwrap().clone()))).task()
                 }
             },
