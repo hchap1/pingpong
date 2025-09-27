@@ -1,4 +1,5 @@
 use crate::backend::database::Database;
+use crate::backend::database_interface::DatabaseInterface;
 use crate::backend::directory::Directory;
 use crate::backend::relay::Relay;
 use crate::error::Error;
@@ -112,6 +113,8 @@ impl Default for Application {
         let (output_sender, output_receiver) = unbounded();
         let database = Database::new(root.get());
         let db = database.derive();
+
+        DatabaseInterface::make_tables_nonblocking(database.derive());
 
         Self {
             root: root.clone(),
