@@ -9,3 +9,8 @@ iroh = "*"
 async-channel = "2.5.0"
 iced = { version = "0.13.1", features = ["tokio"] }
 pin-project = "1.1.10"
+rusqlite = { version = "0.37.0", features = ["bundled"] }
+directories = "*"
+rand = "0.8.5"
+rand_core = "0.6.4"
+hex = "0.4.3"

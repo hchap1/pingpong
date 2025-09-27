@@ -6,6 +6,7 @@ use iroh::NodeId;
 use tokio::time::sleep;
 use tokio::time::Duration;
 
+use crate::backend::database::DataLink;
 use crate::error::{Error, Res};
 use crate::networking::network::ForeignNodeContact;
 use crate::networking::packet::Packet;
@@ -37,8 +38,8 @@ pub enum NetworkOutput {
     AddChat(NodeId)
 }
 
-pub async fn run_network(tasks: Receiver<NetworkTask>, output: Sender<NetworkOutput>) -> Res<()> {
-    let server: Server = Server::spawn().await?;
+pub async fn run_network(tasks: Receiver<NetworkTask>, output: Sender<NetworkOutput>, db: DataLink) -> Res<()> {
+    let server: Server = Server::spawn(db.clone()).await?;
     let mut network: Network = Network {
         conversations: HashMap::new(),
         client_to_server: HashMap::new(),
@@ -53,8 +54,6 @@ pub async fn run_network(tasks: Receiver<NetworkTask>, output: Sender<NetworkOut
     loop {
         // First, check if there are any new messages. If there was a new client that failed to respond appropriately, emit an error.
         while let Ok(mut incoming) = message_receiver.try_recv() {
-
-            println!("INCOMING MESSAGE: {incoming:?}");
 
             // Parse the incoming message and tell the application to track the new chat if it exists.
             match network.add_message(incoming.clone()).await {
@@ -86,8 +85,6 @@ pub async fn run_network(tasks: Receiver<NetworkTask>, output: Sender<NetworkOut
 
                 NetworkTask::SendMessage(target, packet, packet_type) => {
 
-                    println!("SEND MESSAGE TASK, TO {target}");
-
                     match network.send_message(target, packet.clone(), packet_type).await {
                         Ok(potential_new_node) => {
 
@@ -108,10 +105,6 @@ pub async fn run_network(tasks: Receiver<NetworkTask>, output: Sender<NetworkOut
                     }
                 }
             }
-        }
-
-        if !cycle_output.is_empty() {
-            println!("OUTPUTTING: {cycle_output:?}");
         }
 
         // Finally output anything stored in the cycle list.
@@ -137,8 +130,6 @@ impl Network {
     /// If a new foreign node was successfuly spawned, Option<NodeId> contains the foreign address.
     pub async fn add_message(&mut self, mut packet: Packet) -> Res<Option<NodeId>> {
         
-        println!("ADDING MESSAGE: {packet:?}");
-
         match self.client_to_server.get(&packet.author) {
             Some(author) => if let Some(mut_ref) = self.conversations.get_mut(author) {
                 packet.author = *author;
@@ -174,7 +165,6 @@ impl Network {
     pub async fn send_message(&mut self, recipient: NodeId, packet: Vec<u8>, packet_type: PacketType) -> Res<Option<NodeId>> {
 
         let new_node = if let Some(mut_ref) = self.conversations.get_mut(&recipient) {
-            println!("SEND MESSAGE RECIPIENT EXISTS!");
             mut_ref.send_client.send(packet.clone(), packet_type).await?;
             mut_ref.conversation.push(Packet {
                 author: self.incoming.get_address().node_id,
@@ -183,7 +173,6 @@ impl Network {
             });
             None
         } else {
-            println!("SEND RECIPIENT MESSAGE DOES NOT YET EXIST");
             self.conversations.insert(recipient, ForeignNode {
                 send_client: ForeignNodeContact::client(recipient).await?,
                 conversation: vec![Packet {

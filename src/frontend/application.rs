@@ -1,3 +1,5 @@
+use crate::backend::database::{self, Database};
+use crate::backend::directory::Directory;
 use crate::backend::relay::Relay;
 use crate::error::Error;
 use crate::networking::abstraction::{NetworkOutput, NetworkTask};
@@ -20,9 +22,11 @@ pub trait Page {
 }
 
 pub struct Application {
+    root: Directory,
+    database: Database,
     networking_task_sender: Sender<NetworkTask>,
     networking_output_receiver: Receiver<NetworkOutput>,
-    networker: JoinHandle<Res<()>>,
+    _networker: JoinHandle<Res<()>>,
     page: Box<dyn Page>,
 
     active_chats: Vec<NodeId>
@@ -103,13 +107,18 @@ impl Application {
 impl Default for Application {
     fn default() -> Self {
 
+        let root = Directory::create_or_load().expect("[FATAL] Cannot proceed without creating directory, which failed.");
         let (task_sender, task_receiver) = unbounded();
         let (output_sender, output_receiver) = unbounded();
+        let database = Database::new(root.get());
+        let db = database.derive();
 
         Self {
+            root: root.clone(),
+            database,
             networking_task_sender: task_sender,
             networking_output_receiver: output_receiver,
-            networker: spawn(run_network(task_receiver, output_sender)),
+            _networker: spawn(run_network(task_receiver, output_sender, db)),
             page: Box::new(AddPage::default()),
             active_chats: Vec::new()
         }

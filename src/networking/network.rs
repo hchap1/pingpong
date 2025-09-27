@@ -1,3 +1,4 @@
+use crate::backend::database::DataLink;
 use crate::error::{Error, Res};
 use crate::networking::packet::Packet;
 
@@ -18,7 +19,7 @@ const ALPN: &[u8] = b"hchap1/pingpong";
  - Each node runs a server and a client.
  - Each node runs a server to accept messages.
  - When a node wishes to send a packet to another node, it must make a client to connect to the server of that node.
- - Channels, whilst bidirection, are used exclusively for CLIENT -> SERVER communication except for ending the channel.
+ - Channels exclusively for CLIENT -> SERVER
 
 */
 
@@ -112,8 +113,10 @@ pub struct Server {
 
 impl Server {
     
-    /// Create a server
-    pub async fn spawn() -> Res<Self> {
+    /// Create a server, will store permanent address in db
+    pub async fn spawn(db: DataLink) -> Res<Self> {
+        
+        finish
 
         let (send_stream, recv_stream) = unbounded();
         let endpoint = Endpoint::builder().discovery_n0().bind().await?;

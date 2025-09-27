@@ -20,7 +20,14 @@ pub enum Error {
 
     MPMCRecvError,
 
-    NoSuchClient
+    NoSuchClient,
+
+    // DATABASE //
+    ChannelDead,
+
+    // DIRECTORIES //
+    FailedToFindLocation,
+    FailedToCreateFolders,
 }
 
 impl From<BindError> for Error {
