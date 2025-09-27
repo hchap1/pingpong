@@ -185,7 +185,7 @@ impl Network {
                             if let Some(mut_ref) = self.conversations.get_mut(&node_id) {
                                 let _ = mut_ref.send_client.send(self.incoming.get_address().node_id.to_string().into_bytes(), PacketType::Address).await;
                                 if let Some(username) = self.username.as_ref() {
-                                     _ = mut_ref.send_client.send(username.as_bytes().to_vec(), PacketType::Username);
+                                     let _ = mut_ref.send_client.send(username.as_bytes().to_vec(), PacketType::Username).await;
                                 }
                             }
 
@@ -225,7 +225,7 @@ impl Network {
             if let Some(mut_ref) = self.conversations.get_mut(&recipient) {
                 let _ = mut_ref.send_client.send(self.incoming.get_address().node_id.to_string().into_bytes(), PacketType::Address).await;
                 if let Some(username) = self.username.as_ref() {
-                     _ = mut_ref.send_client.send(username.as_bytes().to_vec(), PacketType::Username);
+                     let _ = mut_ref.send_client.send(username.as_bytes().to_vec(), PacketType::Username).await;
                 }
                 let _ = mut_ref.send_client.send(packet, packet_type).await;
             }
