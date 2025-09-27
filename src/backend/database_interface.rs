@@ -66,7 +66,7 @@ impl DatabaseInterface {
     }
 
     pub fn select_username(db: DataLink) -> Option<String> {
-        match db.query_blocking(&SELECT_USERNAME, DatabaseParams::empty()) {
+        match db.query_blocking(SELECT_USERNAME, DatabaseParams::empty()) {
             Ok(rows) => if let Some(first) = rows.first() { first.first().map(|p| p.string()) } else { None },
             Err(_) => None
         }

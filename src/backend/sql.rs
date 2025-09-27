@@ -28,7 +28,7 @@ pub const CREATE_CONTACTS_TABLE: &str = "
     CREATE TABLE IF NOT EXISTS Contacts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         node_id TEXT NOT NULL,
-        username: TEXT NOT NULL
+        username TEXT NOT NULL
     );
 ";
 
