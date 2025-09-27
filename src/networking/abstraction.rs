@@ -182,8 +182,11 @@ impl Network {
                                 conversation: Vec::new()
                             });
 
-                            if let (Some(mutable_ref), Some(username)) = (self.conversations.get_mut(&node_id), self.username.as_ref()) {
-                                let _ = mutable_ref.send_client.send(username.as_bytes().to_vec(), PacketType::Username).await;
+                            if let Some(mut_ref) = self.conversations.get_mut(&node_id) {
+                                let _ = mut_ref.send_client.send(self.incoming.get_address().node_id.to_string().into_bytes(), PacketType::Address).await;
+                                if let Some(username) = self.username.as_ref() {
+                                     _ = mut_ref.send_client.send(username.as_bytes().to_vec(), PacketType::Username);
+                                }
                             }
 
                             return Ok(Some(NetworkOutput::AddChat(Contact::from_node_id(node_id))));
