@@ -147,11 +147,14 @@ impl ProtocolHandler for PacketRelay {
     async fn accept(&self, connection: Connection) -> Result<(), AcceptError> {
 
         let node_id = connection.remote_node_id()?;
-        let recv = connection.accept_uni().await?;
 
-        // Relay until stream is closed by the other end.
-        relay_bytes(node_id, recv, self.relay.clone()).await;
+        loop {
+            let recv = connection.accept_uni().await?;
 
-        Ok(())
+            // Relay until stream is closed by the other end.
+            relay_bytes(node_id, recv, self.relay.clone()).await;
+
+            println!("\nNEW UNI CHANNEL\n");
+        }
     }
 }
