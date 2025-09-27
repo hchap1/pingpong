@@ -76,9 +76,11 @@ pub async fn run_network(tasks: Receiver<NetworkTask>, output: Sender<NetworkOut
                 Err(e) => cycle_output.push(NetworkOutput::NonFatalError(e))
             }
 
-            if let Some(author) = network.client_to_server.get(&incoming.author) {
-                incoming.author = *author;
-                cycle_output.push(NetworkOutput::AddPacket(incoming));
+            if incoming.packet_type == PacketType::String {
+                if let Some(author) = network.client_to_server.get(&incoming.author) {
+                    incoming.author = *author;
+                    cycle_output.push(NetworkOutput::AddPacket(incoming));
+                }
             }
         }
 
