@@ -7,7 +7,6 @@ use tokio::time::sleep;
 use tokio::time::Duration;
 
 use crate::backend::database::DataLink;
-use crate::backend::database_interface::DatabaseInterface;
 use crate::error::{Error, Res};
 use crate::networking::network::ForeignNodeContact;
 use crate::networking::packet::Packet;
