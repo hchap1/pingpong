@@ -30,7 +30,7 @@ impl Page for AddPage {
                     let id = std::mem::take(&mut self.id_input);
                     match NodeId::from_str(&id) {
                         Ok(id) => Message::Global(Global::NetworkTask(
-                            NetworkTask::SendMessage(id, b"Hello".to_vec(), PacketType::String)
+                            NetworkTask::Connect(id)
                         )).task(),
                         Err(_) => Message::Global(Global::Warn(Error::NoSuchClient)).task()
                     }

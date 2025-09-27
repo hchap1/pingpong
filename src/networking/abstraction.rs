@@ -32,6 +32,7 @@ pub enum NetworkTask {
     RequestConversation(NodeId),
     SendMessage(NodeId, Vec<u8>, PacketType),
     SetUsername(String),
+    Connect(NodeId)
 }
 
 #[derive(Debug, Clone)]
@@ -126,6 +127,12 @@ pub async fn run_network(tasks: Receiver<NetworkTask>, output: Sender<NetworkOut
                     }
                     network.username = Some(username);
                 }
+
+                NetworkTask::Connect(node_id) => {
+                    if let Some(output) = network.connect(node_id).await {
+                        cycle_output.push(output);
+                    }
+                }
             }
         }
 
@@ -146,6 +153,29 @@ impl Network {
     /// Yield a receiver that receives all messages. The implementation is responsible for adding this into the conversation synchronously.
     pub fn yield_receiver(&self) -> Receiver<Packet> {
         self.incoming.yield_receiver()
+    }
+
+    pub async fn connect(&mut self, id: NodeId) -> Option<NetworkOutput> {
+
+        if let std::collections::hash_map::Entry::Vacant(e) = self.conversations.entry(id) {
+
+            let mut contact = ForeignNodeContact::client(id).await.ok()?;
+
+            let _ = contact.send(self.incoming.get_address().node_id.to_string().into_bytes(), PacketType::Address).await;
+            if let Some(username) = self.username.as_ref() {
+                 let _ = contact.send(username.as_bytes().to_vec(), PacketType::Username).await;
+            }
+
+            e.insert(ForeignNode {
+                send_client: contact,
+                conversation: Vec::new()
+            });
+
+
+            Some(NetworkOutput::AddChat(Contact::from_node_id(id)))
+        } else {
+            None
+        }
     }
 
     /// Asynchronously add a message into the conversation stack, spawning a new foreign node if required.
@@ -179,7 +209,7 @@ impl Network {
 
                             // Create a new converstation with the foreign server, do not include address packet
                             self.conversations.insert(node_id, ForeignNode {
-                                send_client: ForeignNodeContact::client(node_id, db.clone()).await?,
+                                send_client: ForeignNodeContact::client(node_id).await?,
                                 conversation: Vec::new()
                             });
 
@@ -214,22 +244,6 @@ impl Network {
             });
             None
         } else {
-            self.conversations.insert(recipient, ForeignNode {
-                send_client: ForeignNodeContact::client(recipient, db.clone()).await?,
-                conversation: vec![Packet {
-                    author: self.incoming.get_address().node_id,
-                    content: Ok(packet.clone()),
-                    packet_type
-                }]
-            });
-
-            if let Some(mut_ref) = self.conversations.get_mut(&recipient) {
-                let _ = mut_ref.send_client.send(self.incoming.get_address().node_id.to_string().into_bytes(), PacketType::Address).await;
-                if let Some(username) = self.username.as_ref() {
-                     let _ = mut_ref.send_client.send(username.as_bytes().to_vec(), PacketType::Username).await;
-                }
-                let _ = mut_ref.send_client.send(packet, packet_type).await;
-            }
 
             Some(recipient)
         };
