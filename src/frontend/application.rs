@@ -51,8 +51,8 @@ impl Application {
                                                 .on_press(Message::Global(Global::Load(PageType::Chat(c.server_address))))
                                                 .into()
                                         )
-                                ).width(Length::FillPortion(1)).height(Length::FillPortion(1))
-                            )
+                                ).width(Length::FillPortion(1))
+                            ).height(Length::FillPortion(1))
                         ).push(
                             Scrollable::new(
                                 Column::from_iter(
@@ -62,8 +62,8 @@ impl Application {
                                                 .on_press(Message::Global(Global::Load(PageType::Chat(c.server_address))))
                                                 .into()
                                         )
-                                ).width(Length::FillPortion(1)).height(Length::FillPortion(1))
-                            )
+                                ).width(Length::FillPortion(1))
+                            ).height(Length::FillPortion(1))
                         )
                 ).push(
                     self.page.view()
