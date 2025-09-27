@@ -52,7 +52,7 @@ pub async fn run_network(tasks: Receiver<NetworkTask>, output: Sender<NetworkOut
 
     loop {
         // First, check if there are any new messages. If there was a new client that failed to respond appropriately, emit an error.
-        while let Ok(incoming) = message_receiver.try_recv() {
+        while let Ok(mut incoming) = message_receiver.try_recv() {
 
             println!("INCOMING MESSAGE: {incoming:?}");
 
@@ -61,6 +61,11 @@ pub async fn run_network(tasks: Receiver<NetworkTask>, output: Sender<NetworkOut
                 Ok(Some(new_contact)) => cycle_output.push(NetworkOutput::AddChat(new_contact)),
                 Ok(None) => {},
                 Err(e) => cycle_output.push(NetworkOutput::NonFatalError(e))
+            }
+
+            if let Some(author) = network.client_to_server.get(&incoming.author) {
+                incoming.author = *author;
+                cycle_output.push(NetworkOutput::AddPacket(incoming));
             }
         }
 
