@@ -130,12 +130,13 @@ impl Network {
 
     /// Asynchronously add a message into the conversation stack, spawning a new foreign node if required.
     /// If a new foreign node was successfuly spawned, Option<NodeId> contains the foreign address.
-    pub async fn add_message(&mut self, packet: Packet) -> Res<Option<NodeId>> {
+    pub async fn add_message(&mut self, mut packet: Packet) -> Res<Option<NodeId>> {
         
         println!("ADDING MESSAGE: {packet:?}");
 
         match self.client_to_server.get(&packet.author) {
             Some(author) => if let Some(mut_ref) = self.conversations.get_mut(author) {
+                packet.author = *author;
                 mut_ref.conversation.push(packet);
             }
             None => if packet.packet_type == PacketType::Address {
@@ -166,7 +167,7 @@ impl Network {
     /// Send a message to a target address, forming a connection if it does not already exist to their server.
     /// If a new foreign node was successfuly spawned, Option<NodeId> contains the foreign address.
     pub async fn send_message(&mut self, recipient: NodeId, packet: Vec<u8>, packet_type: PacketType) -> Res<Option<NodeId>> {
-        
+
         let new_node = if let Some(mut_ref) = self.conversations.get_mut(&recipient) {
             println!("SEND MESSAGE RECIPIENT EXISTS!");
             mut_ref.send_client.send(packet.clone(), packet_type).await?;
