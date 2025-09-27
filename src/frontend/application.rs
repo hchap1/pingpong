@@ -71,7 +71,7 @@ impl Application {
                                     self.possible_chats.iter()
                                         .map(|c|
                                             button(text(c.username.as_ref().unwrap_or(&c.server_address.to_string()).to_string()))
-                                                .on_press(Message::Global(Global::Load(PageType::Chat(c.server_address))))
+                                                .on_press(Message::Global(Global::AddChat(c.clone())))
                                                 .into()
                                         )
                                 ).width(Length::FillPortion(1))
